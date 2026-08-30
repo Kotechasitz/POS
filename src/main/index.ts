@@ -2,6 +2,9 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { createDbClient } from './database/client'
+import { getDbPath } from './database/db-path'
+import { products } from './database/schema'
 
 function createWindow(): void {
   // Create the browser window.
@@ -51,6 +54,13 @@ app.whenReady().then(() => {
 
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
+
+  const { db } = createDbClient(getDbPath(), join(__dirname, '../../drizzle'))
+
+  ipcMain.handle('db:health', () => {
+    const rows = db.select().from(products).all()
+    return { productCount: rows.length }
+  })
 
   createWindow()
 

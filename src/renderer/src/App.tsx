@@ -1,11 +1,20 @@
+import { useEffect, useState } from 'react'
 import Versions from './components/Versions'
 import electronLogo from './assets/electron.svg'
 
 function App(): React.JSX.Element {
   const ipcHandle = (): void => window.electron.ipcRenderer.send('ping')
+  const [dbStatus, setDbStatus] = useState<string>('Checking database...')
+
+  useEffect(() => {
+    window.api.dbHealth().then(({ productCount }) => {
+      setDbStatus(`Database ready — ${productCount} products`)
+    })
+  }, [])
 
   return (
     <>
+      <p data-testid="db-status">{dbStatus}</p>
       <img alt="logo" className="logo" src={electronLogo} />
       <div className="creator">Powered by electron-vite</div>
       <div className="text">
