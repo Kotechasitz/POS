@@ -55,13 +55,5 @@
     "typescript": "^5.9.3",
     "vite": "^7.2.6",
     "vitest": "^4.1.11"
-  },
-  "allowScripts": {
-    "electron@39.8.10": true,
-    "electron-winstaller@5.4.0": true,
-    "esbuild@0.25.12": true,
-    "esbuild@0.28.2": true,
-    "better-sqlite3@13.0.3": true,
-    "esbuild@0.18.20": true
   }
 }
