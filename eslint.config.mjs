@@ -34,16 +34,16 @@ export default defineConfig(
       'no-restricted-imports': [
         'error',
         {
-          paths: [
+          patterns: [
             {
-              name: 'better-sqlite3',
-              message:
-                'The renderer must never touch SQLite directly — call it through window.api instead.'
-            },
-            {
-              name: 'drizzle-orm',
+              group: ['better-sqlite3', 'better-sqlite3/**', 'drizzle-orm', 'drizzle-orm/**'],
               message:
                 'The renderer must never touch the database directly — call it through window.api instead.'
+            },
+            {
+              group: ['**/main/**'],
+              message:
+                'The renderer must not import main-process code directly — call it through window.api instead.'
             }
           ]
         }

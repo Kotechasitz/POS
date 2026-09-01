@@ -68,6 +68,7 @@ function ProductsPage(): React.JSX.Element {
 
       {showForm && (
         <ProductForm
+          key={editingProduct?.id ?? 'new'}
           initialValues={editingProduct ?? undefined}
           submitting={submitting}
           error={formError}

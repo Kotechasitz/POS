@@ -42,6 +42,10 @@ function ProductForm({
       setFormError('Product name is required')
       return
     }
+    if (priceBaht.trim().length === 0) {
+      setFormError('Price is required')
+      return
+    }
     const priceCents = Math.round(Number(priceBaht) * 100)
     if (!Number.isFinite(priceCents) || priceCents < 0) {
       setFormError('Price must be a non-negative number')

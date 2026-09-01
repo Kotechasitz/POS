@@ -38,6 +38,20 @@ describe('ProductForm', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Product name is required')
   })
 
+  it('rejects submission with an empty price', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<ProductForm submitting={false} error={null} onSubmit={onSubmit} onCancel={vi.fn()} />)
+
+    await user.type(screen.getByLabelText('Barcode'), '123')
+    await user.type(screen.getByLabelText('Name'), 'A')
+    await user.type(screen.getByLabelText('Stock'), '1')
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent('Price is required')
+  })
+
   it('rejects a negative price', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
