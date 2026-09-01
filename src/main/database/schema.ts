@@ -11,6 +11,8 @@ export const products = sqliteTable('products', {
   updatedAt: text('updated_at').notNull()
 })
 
+export type ProductRow = typeof products.$inferSelect
+
 export const sales = sqliteTable('sales', {
   id: text('id').primaryKey(),
   totalCents: integer('total_cents').notNull(),
