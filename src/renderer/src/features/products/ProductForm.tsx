@@ -68,7 +68,7 @@ function ProductForm({
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} noValidate>
       <h2>{isEditing ? 'Edit Product' : 'Add Product'}</h2>
 
       <label htmlFor="product-barcode">Barcode</label>
