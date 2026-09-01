@@ -1,10 +1,20 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { count } from 'drizzle-orm'
 import icon from '../../resources/icon.png?asset'
-import { createDbClient } from './database/client'
+import { createDbClient, type DbClient } from './database/client'
 import { getDbPath } from './database/db-path'
 import { products } from './database/schema'
+
+let dbClient: DbClient
+
+export function getDb(): DbClient {
+  if (!dbClient) {
+    throw new Error('Database not initialized yet')
+  }
+  return dbClient
+}
 
 function createWindow(): void {
   // Create the browser window.
@@ -41,7 +51,7 @@ function createWindow(): void {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
 
@@ -55,11 +65,20 @@ app.whenReady().then(() => {
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
 
-  const { db } = createDbClient(getDbPath(), join(__dirname, '../../drizzle'))
+  try {
+    dbClient = createDbClient(getDbPath(), join(__dirname, '../../drizzle'))
+  } catch (err) {
+    dialog.showErrorBox(
+      'Database Error',
+      `Failed to open the local database:\n${err instanceof Error ? err.message : String(err)}`
+    )
+    app.quit()
+    return
+  }
 
   ipcMain.handle('db:health', () => {
-    const rows = db.select().from(products).all()
-    return { productCount: rows.length }
+    const [{ value }] = dbClient.db.select({ value: count() }).from(products).all()
+    return { productCount: value }
   })
 
   createWindow()
@@ -69,6 +88,10 @@ app.whenReady().then(() => {
     // dock icon is clicked and there are no other windows open.
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
+})
+
+app.on('will-quit', () => {
+  dbClient?.sqlite.close()
 })
 
 // Quit when all windows are closed, except on macOS. There, it's common

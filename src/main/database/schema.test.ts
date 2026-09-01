@@ -1,14 +1,14 @@
-import { describe, it, expect } from 'vitest';
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
-import { products } from './schema';
+import { describe, it, expect } from 'vitest'
+import Database from 'better-sqlite3'
+import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
+import { products } from './schema'
 
 describe('database schema', () => {
   it('creates all four MVP tables', () => {
-    const sqlite = new Database(':memory:');
-    const db = drizzle(sqlite);
-    migrate(db, { migrationsFolder: './drizzle' });
+    const sqlite = new Database(':memory:')
+    const db = drizzle(sqlite)
+    migrate(db, { migrationsFolder: './drizzle' })
 
     const tables = sqlite
       .prepare(
@@ -16,18 +16,18 @@ describe('database schema', () => {
       )
       .all()
       .map((row) => (row as { name: string }).name)
-      .sort();
+      .sort()
 
-    expect(tables).toEqual(['products', 'sale_items', 'sales', 'stock_transactions']);
-    sqlite.close();
-  });
+    expect(tables).toEqual(['products', 'sale_items', 'sales', 'stock_transactions'])
+    sqlite.close()
+  })
 
   it('rejects a duplicate barcode', () => {
-    const sqlite = new Database(':memory:');
-    const db = drizzle(sqlite);
-    migrate(db, { migrationsFolder: './drizzle' });
+    const sqlite = new Database(':memory:')
+    const db = drizzle(sqlite)
+    migrate(db, { migrationsFolder: './drizzle' })
 
-    const now = new Date().toISOString();
+    const now = new Date().toISOString()
     db.insert(products)
       .values({
         id: 'p1',
@@ -39,7 +39,7 @@ describe('database schema', () => {
         createdAt: now,
         updatedAt: now
       })
-      .run();
+      .run()
 
     expect(() =>
       db
@@ -55,8 +55,8 @@ describe('database schema', () => {
           updatedAt: now
         })
         .run()
-    ).toThrow(/UNIQUE constraint failed/);
+    ).toThrow(/UNIQUE constraint failed/)
 
-    sqlite.close();
-  });
-});
+    sqlite.close()
+  })
+})

@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
 
 export const products = sqliteTable('products', {
   id: text('id').primaryKey(),
@@ -9,14 +9,14 @@ export const products = sqliteTable('products', {
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull()
-});
+})
 
 export const sales = sqliteTable('sales', {
   id: text('id').primaryKey(),
   totalCents: integer('total_cents').notNull(),
   status: text('status').notNull().default('COMPLETED'),
   createdAt: text('created_at').notNull()
-});
+})
 
 export const saleItems = sqliteTable('sale_items', {
   id: text('id').primaryKey(),
@@ -30,7 +30,7 @@ export const saleItems = sqliteTable('sale_items', {
   priceCents: integer('price_cents').notNull(),
   quantity: integer('quantity').notNull(),
   totalCents: integer('total_cents').notNull()
-});
+})
 
 export const stockTransactions = sqliteTable('stock_transactions', {
   id: text('id').primaryKey(),
@@ -41,4 +41,4 @@ export const stockTransactions = sqliteTable('stock_transactions', {
   quantity: integer('quantity').notNull(),
   referenceId: text('reference_id'),
   createdAt: text('created_at').notNull()
-});
+})
