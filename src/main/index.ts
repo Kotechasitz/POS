@@ -6,6 +6,7 @@ import icon from '../../resources/icon.png?asset'
 import { createDbClient, type DbClient } from './database/client'
 import { getDbPath } from './database/db-path'
 import { products } from './database/schema'
+import { registerProductHandlers } from './ipc/register-product-handlers'
 
 let dbClient: DbClient
 
@@ -80,6 +81,8 @@ app.whenReady().then(async () => {
     const [{ value }] = dbClient.db.select({ value: count() }).from(products).all()
     return { productCount: value }
   })
+
+  registerProductHandlers(dbClient.db)
 
   createWindow()
 

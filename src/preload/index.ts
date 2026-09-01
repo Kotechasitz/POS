@@ -1,9 +1,17 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
+import type { CreateProductInput, ProductRecord, UpdateProductInput } from '../shared/product'
 
 // Custom APIs for renderer
 const api = {
-  dbHealth: (): Promise<{ productCount: number }> => ipcRenderer.invoke('db:health')
+  dbHealth: (): Promise<{ productCount: number }> => ipcRenderer.invoke('db:health'),
+  products: {
+    list: (query?: string): Promise<ProductRecord[]> => ipcRenderer.invoke('products:list', query),
+    create: (input: CreateProductInput): Promise<ProductRecord> =>
+      ipcRenderer.invoke('products:create', input),
+    update: (id: string, input: UpdateProductInput): Promise<ProductRecord> =>
+      ipcRenderer.invoke('products:update', id, input)
+  }
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to
