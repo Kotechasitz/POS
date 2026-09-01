@@ -28,5 +28,27 @@ export default defineConfig(
       ...eslintPluginReactRefresh.configs.vite.rules
     }
   },
+  {
+    files: ['src/renderer/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'better-sqlite3',
+              message:
+                'The renderer must never touch SQLite directly — call it through window.api instead.'
+            },
+            {
+              name: 'drizzle-orm',
+              message:
+                'The renderer must never touch the database directly — call it through window.api instead.'
+            }
+          ]
+        }
+      ]
+    }
+  },
   eslintConfigPrettier
 )
