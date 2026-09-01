@@ -63,9 +63,6 @@ app.whenReady().then(async () => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
-
   try {
     dbClient = createDbClient(getDbPath(), join(__dirname, '../../drizzle'))
   } catch (err) {
