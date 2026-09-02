@@ -1,13 +1,10 @@
 import type { ProductRecord } from '../../../../shared/product'
+import { Money } from '../../../../shared/money'
 
 export interface ProductListProps {
   products: ProductRecord[]
   onEdit: (product: ProductRecord) => void
   query?: string
-}
-
-function formatBaht(cents: number): string {
-  return `฿${(cents / 100).toFixed(2)}`
 }
 
 function EmptyIcon(): React.JSX.Element {
@@ -56,7 +53,7 @@ function ProductList({ products, onEdit, query }: ProductListProps): React.JSX.E
           <tr key={product.id} className={product.isActive ? undefined : 'is-inactive'}>
             <td className="cell-barcode">{product.barcode}</td>
             <td>{product.name}</td>
-            <td className="cell-price">{formatBaht(product.priceCents)}</td>
+            <td className="cell-price">{Money.fromCents(product.priceCents).format()}</td>
             <td className="cell-stock">{product.stock}</td>
             <td>
               <span className={`badge ${product.isActive ? 'badge-active' : 'badge-inactive'}`}>

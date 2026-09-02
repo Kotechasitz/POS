@@ -4,6 +4,7 @@ import type {
   ProductRecord,
   UpdateProductInput
 } from '../../../../shared/product'
+import { Money } from '../../../../shared/money'
 
 export interface ProductFormProps {
   initialValues?: ProductRecord
@@ -23,7 +24,7 @@ function ProductForm({
   const [barcode, setBarcode] = useState(initialValues?.barcode ?? '')
   const [name, setName] = useState(initialValues?.name ?? '')
   const [priceBaht, setPriceBaht] = useState(
-    initialValues ? (initialValues.priceCents / 100).toString() : ''
+    initialValues ? Money.fromCents(initialValues.priceCents).toBaht().toString() : ''
   )
   const [stock, setStock] = useState(initialValues ? initialValues.stock.toString() : '')
   const [isActive, setIsActive] = useState(initialValues?.isActive ?? true)
@@ -65,11 +66,12 @@ function ProductForm({
       setFormError('Price is required')
       return
     }
-    const priceCents = Math.round(Number(priceBaht) * 100)
-    if (!Number.isFinite(priceCents) || priceCents < 0) {
+    const price = Money.parseBaht(priceBaht)
+    if (!price) {
       setFormError('Price must be a non-negative number')
       return
     }
+    const priceCents = price.cents
     const stockValue = Number(stock)
     if (!Number.isInteger(stockValue) || stockValue < 0) {
       setFormError('Stock must be a non-negative whole number')
