@@ -119,5 +119,7 @@ export function lineTotalCents(item: CartItem): number {
 }
 
 export function cartTotalCents(items: CartItem[]): number {
-  return items.reduce((total, item) => total + lineTotalCents(item), 0)
+  return items
+    .reduce((total, item) => total.add(Money.fromCents(lineTotalCents(item))), Money.fromCents(0))
+    .cents
 }
