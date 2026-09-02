@@ -24,7 +24,7 @@ describe('useCartStore', () => {
     expect(useCartStore.getState().items).toHaveLength(1)
   })
 
-  it('rejects adding beyond the product\'s available stock', () => {
+  it("rejects adding beyond the product's available stock", () => {
     for (let i = 0; i < water.stock; i++) {
       useCartStore.getState().addScannedProduct(water)
     }
@@ -94,5 +94,31 @@ describe('useCartStore', () => {
     const items = useCartStore.getState().items
     expect(lineTotalCents(items[0])).toBe(4000)
     expect(cartTotalCents(items)).toBe(5000)
+  })
+
+  it('syncStock updates the cached stock and clamps quantity down if it now exceeds the new stock', () => {
+    useCartStore.getState().addScannedProduct(coke) // stock 5, quantity 1
+    useCartStore.getState().incrementItem('1')
+    useCartStore.getState().incrementItem('1')
+    useCartStore.getState().incrementItem('1') // quantity 4, stock still cached as 5
+
+    useCartStore.getState().syncStock('1', 2)
+
+    expect(useCartStore.getState().items[0].stock).toBe(2)
+    expect(useCartStore.getState().items[0].quantity).toBe(2)
+  })
+
+  it('addScannedProduct refreshes cached stock on a rejected rescan, not just an accepted one', () => {
+    useCartStore.getState().addScannedProduct(water) // stock 1, quantity 1
+    const result = useCartStore.getState().addScannedProduct(water) // still stock 1 -> rejected
+
+    expect(result).toEqual({ ok: false, reason: 'out-of-stock' })
+    expect(useCartStore.getState().items[0].stock).toBe(1)
+
+    // Now simulate stock having increased in the DB since the last scan/reject —
+    // rescanning should refresh the cached stock even though this attempt also rejects.
+    const rescanResult = useCartStore.getState().addScannedProduct({ ...water, stock: 1 })
+    expect(rescanResult).toEqual({ ok: false, reason: 'out-of-stock' })
+    expect(useCartStore.getState().items[0].stock).toBe(1)
   })
 })

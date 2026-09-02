@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useCartStore, cartTotalCents } from './cartStore'
 import { useBarcodeScan } from './useBarcodeScan'
 import CartTable from './CartTable'
@@ -10,6 +11,26 @@ function PosPage(): React.JSX.Element {
   const removeItem = useCartStore((state) => state.removeItem)
   const clear = useCartStore((state) => state.clear)
   const { inputRef, value, setValue, error, handleKeyDown } = useBarcodeScan()
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function reconcileStock(): Promise<void> {
+      const currentItems = useCartStore.getState().items
+      for (const item of currentItems) {
+        const fresh = await window.api.products.getByBarcode(item.barcode)
+        if (!cancelled && fresh) {
+          useCartStore.getState().syncStock(item.productId, fresh.stock)
+        }
+      }
+    }
+
+    reconcileStock()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   return (
     <div className="products-page">
@@ -40,11 +61,21 @@ function PosPage(): React.JSX.Element {
       )}
 
       <div className="products-card">
-        <CartTable items={items} onIncrement={incrementItem} onDecrement={decrementItem} onRemove={removeItem} />
+        <CartTable
+          items={items}
+          onIncrement={incrementItem}
+          onDecrement={decrementItem}
+          onRemove={removeItem}
+        />
       </div>
 
       <div className="pos-footer">
-        <button type="button" className="btn btn-secondary" onClick={clear} disabled={items.length === 0}>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={clear}
+          disabled={items.length === 0}
+        >
           Clear Cart
         </button>
       </div>

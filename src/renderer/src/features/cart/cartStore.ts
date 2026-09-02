@@ -28,6 +28,7 @@ interface CartState {
   setQuantity: (productId: string, quantity: number) => void
   removeItem: (productId: string) => void
   clear: () => void
+  syncStock: (productId: string, stock: number) => void
 }
 
 export const useCartStore = create<CartState>((set, get) => ({
@@ -38,6 +39,11 @@ export const useCartStore = create<CartState>((set, get) => ({
 
     if (existing) {
       if (existing.quantity + 1 > product.stock) {
+        set({
+          items: get().items.map((item) =>
+            item.productId === product.id ? { ...item, stock: product.stock } : item
+          )
+        })
         return { ok: false, reason: 'out-of-stock' }
       }
       set({
@@ -111,7 +117,17 @@ export const useCartStore = create<CartState>((set, get) => ({
     set({ items: get().items.filter((item) => item.productId !== productId) })
   },
 
-  clear: () => set({ items: [] })
+  clear: () => set({ items: [] }),
+
+  syncStock: (productId, stock) => {
+    set({
+      items: get().items.map((item) =>
+        item.productId === productId
+          ? { ...item, stock, quantity: Math.min(item.quantity, stock) }
+          : item
+      )
+    })
+  }
 }))
 
 export function lineTotalCents(item: CartItem): number {
@@ -119,7 +135,8 @@ export function lineTotalCents(item: CartItem): number {
 }
 
 export function cartTotalCents(items: CartItem[]): number {
-  return items
-    .reduce((total, item) => total.add(Money.fromCents(lineTotalCents(item))), Money.fromCents(0))
-    .cents
+  return items.reduce(
+    (total, item) => total.add(Money.fromCents(lineTotalCents(item))),
+    Money.fromCents(0)
+  ).cents
 }
