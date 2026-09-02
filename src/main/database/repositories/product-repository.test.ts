@@ -7,6 +7,7 @@ import {
   createProduct,
   updateProduct,
   getProductById,
+  getProductByBarcode,
   searchProducts,
   ProductValidationError,
   DuplicateBarcodeError,
@@ -111,5 +112,41 @@ describe('product repository', () => {
 
     expect(searchProducts(client.db)).toHaveLength(2)
     expect(searchProducts(client.db, 'nonexistent')).toHaveLength(0)
+  })
+
+  it('finds a product by its exact barcode', () => {
+    createProduct(client.db, {
+      barcode: '8850001000012',
+      name: 'Coca Cola',
+      priceCents: 2000,
+      stock: 50
+    })
+
+    const found = getProductByBarcode(client.db, '8850001000012')
+    expect(found?.name).toBe('Coca Cola')
+  })
+
+  it('does not match a barcode substring, only an exact match', () => {
+    createProduct(client.db, {
+      barcode: '8850001000012',
+      name: 'Coca Cola',
+      priceCents: 2000,
+      stock: 50
+    })
+
+    expect(getProductByBarcode(client.db, '885000100001')).toBeUndefined()
+    expect(getProductByBarcode(client.db, '88500010000123')).toBeUndefined()
+  })
+
+  it('returns undefined for a barcode that does not exist', () => {
+    expect(getProductByBarcode(client.db, 'does-not-exist')).toBeUndefined()
+  })
+
+  it('still returns an inactive product by barcode — callers decide whether inactive is sellable', () => {
+    const created = createProduct(client.db, { barcode: '999', name: 'A', priceCents: 100, stock: 1 })
+    updateProduct(client.db, created.id, { isActive: false })
+
+    const found = getProductByBarcode(client.db, '999')
+    expect(found?.isActive).toBe(false)
   })
 })

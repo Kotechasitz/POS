@@ -57,6 +57,15 @@ export function getProductById(db: BetterSQLite3Database, id: string): ProductRe
   return db.select().from(products).where(eq(products.id, id)).get() as ProductRecord | undefined
 }
 
+export function getProductByBarcode(
+  db: BetterSQLite3Database,
+  barcode: string
+): ProductRecord | undefined {
+  return db.select().from(products).where(eq(products.barcode, barcode)).get() as
+    | ProductRecord
+    | undefined
+}
+
 export function createProduct(db: BetterSQLite3Database, input: CreateProductInput): ProductRecord {
   validateBarcode(input.barcode)
   validateName(input.name)

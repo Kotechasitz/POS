@@ -10,7 +10,9 @@ const api = {
     create: (input: CreateProductInput): Promise<ProductRecord> =>
       ipcRenderer.invoke('products:create', input),
     update: (id: string, input: UpdateProductInput): Promise<ProductRecord> =>
-      ipcRenderer.invoke('products:update', id, input)
+      ipcRenderer.invoke('products:update', id, input),
+    getByBarcode: (barcode: string): Promise<ProductRecord | null> =>
+      ipcRenderer.invoke('products:getByBarcode', barcode)
   }
 }
 

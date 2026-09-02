@@ -10,6 +10,7 @@ declare global {
         list: (query?: string) => Promise<ProductRecord[]>
         create: (input: CreateProductInput) => Promise<ProductRecord>
         update: (id: string, input: UpdateProductInput) => Promise<ProductRecord>
+        getByBarcode: (barcode: string) => Promise<ProductRecord | null>
       }
     }
   }

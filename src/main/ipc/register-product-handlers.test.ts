@@ -32,10 +32,11 @@ describe('registerProductHandlers', () => {
     if (fs.existsSync(dbFile)) fs.rmSync(dbFile)
   })
 
-  it('registers products:list, products:create, and products:update', () => {
+  it('registers products:list, products:create, products:update, and products:getByBarcode', () => {
     expect(handlers.has('products:list')).toBe(true)
     expect(handlers.has('products:create')).toBe(true)
     expect(handlers.has('products:update')).toBe(true)
+    expect(handlers.has('products:getByBarcode')).toBe(true)
   })
 
   it('products:create creates a product and products:list returns it', () => {
@@ -61,5 +62,17 @@ describe('registerProductHandlers', () => {
     const updated = updateHandler({}, created.id, { stock: 99 }) as { stock: number }
 
     expect(updated.stock).toBe(99)
+  })
+
+  it('products:getByBarcode returns the matching product, or null when there is no match', () => {
+    const createHandler = handlers.get('products:create')!
+    const getByBarcodeHandler = handlers.get('products:getByBarcode')!
+
+    createHandler({}, { barcode: '555', name: 'A', priceCents: 100, stock: 1 })
+
+    const found = getByBarcodeHandler({}, '555') as { name: string } | null
+    expect(found?.name).toBe('A')
+
+    expect(getByBarcodeHandler({}, 'nope')).toBeNull()
   })
 })
