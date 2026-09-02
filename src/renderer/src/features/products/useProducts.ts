@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { CreateProductInput, ProductRecord, UpdateProductInput } from '../../../../shared/product'
+import type {
+  CreateProductInput,
+  ProductRecord,
+  UpdateProductInput
+} from '../../../../shared/product'
 
 // When a listener registered with `ipcMain.handle` throws, Electron's
 // `ipcRenderer.invoke` rejects with a message wrapped like:

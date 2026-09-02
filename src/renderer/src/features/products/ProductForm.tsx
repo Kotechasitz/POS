@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type {
   CreateProductInput,
   ProductRecord,
@@ -30,6 +30,25 @@ function ProductForm({
   const [formError, setFormError] = useState<string | null>(null)
 
   const isEditing = initialValues !== undefined
+
+  // Let the shop owner dismiss the dialog with Escape, matching how every
+  // other dialog on their desktop behaves — but not mid-save, so an
+  // in-flight create/update can't be abandoned by an accidental keypress.
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (event.key === 'Escape' && !submitting) {
+        onCancel()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [onCancel, submitting])
+
+  function handleBackdropClick(event: React.MouseEvent<HTMLDivElement>): void {
+    if (event.target === event.currentTarget && !submitting) {
+      onCancel()
+    }
+  }
 
   function handleSubmit(event: React.FormEvent): void {
     event.preventDefault()
@@ -72,69 +91,100 @@ function ProductForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate>
-      <h2>{isEditing ? 'Edit Product' : 'Add Product'}</h2>
+    <div className="modal-backdrop" onClick={handleBackdropClick}>
+      <div
+        className="modal-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="product-form-title"
+      >
+        <form onSubmit={handleSubmit} noValidate>
+          <h2 id="product-form-title">{isEditing ? 'Edit Product' : 'Add Product'}</h2>
 
-      <label htmlFor="product-barcode">Barcode</label>
-      <input
-        id="product-barcode"
-        value={barcode}
-        onChange={(e) => setBarcode(e.target.value)}
-        disabled={submitting}
-      />
+          <div className="field">
+            <label htmlFor="product-barcode">Barcode</label>
+            <input
+              id="product-barcode"
+              value={barcode}
+              onChange={(e) => setBarcode(e.target.value)}
+              disabled={submitting}
+              autoFocus
+            />
+          </div>
 
-      <label htmlFor="product-name">Name</label>
-      <input
-        id="product-name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        disabled={submitting}
-      />
+          <div className="field">
+            <label htmlFor="product-name">Name</label>
+            <input
+              id="product-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              disabled={submitting}
+            />
+          </div>
 
-      <label htmlFor="product-price">Price (Baht)</label>
-      <input
-        id="product-price"
-        type="number"
-        step="0.01"
-        min="0"
-        value={priceBaht}
-        onChange={(e) => setPriceBaht(e.target.value)}
-        disabled={submitting}
-      />
+          <div className="field-row">
+            <div className="field">
+              <label htmlFor="product-price">Price (Baht)</label>
+              <input
+                id="product-price"
+                type="number"
+                step="0.01"
+                min="0"
+                value={priceBaht}
+                onChange={(e) => setPriceBaht(e.target.value)}
+                disabled={submitting}
+              />
+            </div>
 
-      <label htmlFor="product-stock">Stock</label>
-      <input
-        id="product-stock"
-        type="number"
-        step="1"
-        min="0"
-        value={stock}
-        onChange={(e) => setStock(e.target.value)}
-        disabled={submitting}
-      />
+            <div className="field">
+              <label htmlFor="product-stock">Stock</label>
+              <input
+                id="product-stock"
+                type="number"
+                step="1"
+                min="0"
+                value={stock}
+                onChange={(e) => setStock(e.target.value)}
+                disabled={submitting}
+              />
+            </div>
+          </div>
 
-      {isEditing && (
-        <label htmlFor="product-active">
-          <input
-            id="product-active"
-            type="checkbox"
-            checked={isActive}
-            onChange={(e) => setIsActive(e.target.checked)}
-            disabled={submitting}
-          />
-          Active
-        </label>
-      )}
+          {isEditing && (
+            <label className="checkbox-field" htmlFor="product-active">
+              <input
+                id="product-active"
+                type="checkbox"
+                checked={isActive}
+                onChange={(e) => setIsActive(e.target.checked)}
+                disabled={submitting}
+              />
+              Active
+            </label>
+          )}
 
-      {(formError || error) && <p role="alert">{formError ?? error}</p>}
+          {(formError || error) && (
+            <p role="alert" className="alert alert-danger">
+              {formError ?? error}
+            </p>
+          )}
 
-      <button type="submit" disabled={submitting}>
-        {isEditing ? 'Save' : 'Add'}
-      </button>
-      <button type="button" onClick={onCancel} disabled={submitting}>
-        Cancel
-      </button>
-    </form>
+          <div className="modal-actions">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={onCancel}
+              disabled={submitting}
+            >
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={submitting}>
+              {submitting ? 'Saving…' : isEditing ? 'Save' : 'Add'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   )
 }
 

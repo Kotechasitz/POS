@@ -39,9 +39,15 @@ describe('ProductList', () => {
     expect(screen.getByText('Inactive')).toBeInTheDocument()
   })
 
-  it('shows an empty state when there are no products', () => {
+  it('shows a friendly empty state when there are no products and no search is active', () => {
     render(<ProductList products={[]} onEdit={vi.fn()} />)
-    expect(screen.getByText('No products found.')).toBeInTheDocument()
+    expect(screen.getByText('No products yet')).toBeInTheDocument()
+  })
+
+  it('shows a search-specific empty state when a query returns no matches', () => {
+    render(<ProductList products={[]} onEdit={vi.fn()} query="xyz" />)
+    expect(screen.getByText('No matching products')).toBeInTheDocument()
+    expect(screen.getByText(/Nothing matches "xyz"/)).toBeInTheDocument()
   })
 
   it('calls onEdit with the product when its Edit button is clicked', async () => {

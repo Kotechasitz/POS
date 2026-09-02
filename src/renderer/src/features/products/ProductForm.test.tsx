@@ -118,4 +118,51 @@ describe('ProductForm', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('already exists')
   })
+
+  it('calls onCancel when the Escape key is pressed', async () => {
+    const user = userEvent.setup()
+    const onCancel = vi.fn()
+    render(<ProductForm submitting={false} error={null} onSubmit={vi.fn()} onCancel={onCancel} />)
+
+    await user.keyboard('{Escape}')
+
+    expect(onCancel).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not call onCancel on Escape while a submission is in flight', async () => {
+    const user = userEvent.setup()
+    const onCancel = vi.fn()
+    render(<ProductForm submitting={true} error={null} onSubmit={vi.fn()} onCancel={onCancel} />)
+
+    await user.keyboard('{Escape}')
+
+    expect(onCancel).not.toHaveBeenCalled()
+  })
+
+  it('calls onCancel when the backdrop (outside the dialog panel) is clicked', async () => {
+    const user = userEvent.setup()
+    const onCancel = vi.fn()
+    render(<ProductForm submitting={false} error={null} onSubmit={vi.fn()} onCancel={onCancel} />)
+
+    await user.click(screen.getByRole('dialog').parentElement as HTMLElement)
+
+    expect(onCancel).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not call onCancel when clicking inside the dialog panel', async () => {
+    const user = userEvent.setup()
+    const onCancel = vi.fn()
+    render(<ProductForm submitting={false} error={null} onSubmit={vi.fn()} onCancel={onCancel} />)
+
+    await user.click(screen.getByRole('dialog'))
+
+    expect(onCancel).not.toHaveBeenCalled()
+  })
+
+  it('renders as an accessible dialog labelled by its heading', () => {
+    render(<ProductForm submitting={false} error={null} onSubmit={vi.fn()} onCancel={vi.fn()} />)
+
+    const dialog = screen.getByRole('dialog', { name: 'Add Product' })
+    expect(dialog).toBeInTheDocument()
+  })
 })

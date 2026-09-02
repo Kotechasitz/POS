@@ -60,7 +60,12 @@ describe('useProducts', () => {
     ;(window.api.products.create as ReturnType<typeof vi.fn>).mockResolvedValue(sampleProduct)
 
     await act(async () => {
-      await result.current.createProduct({ barcode: '123', name: 'Water', priceCents: 1000, stock: 5 })
+      await result.current.createProduct({
+        barcode: '123',
+        name: 'Water',
+        priceCents: 1000,
+        stock: 5
+      })
     })
 
     expect(window.api.products.create).toHaveBeenCalledWith({
