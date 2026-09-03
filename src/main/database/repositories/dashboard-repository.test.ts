@@ -6,7 +6,12 @@ import { createDbClient, type DbClient } from '../client'
 import { sales, saleItems } from '../schema'
 import { createProduct, updateProduct } from './product-repository'
 import { completeSale } from './sale-repository'
-import { getDashboardSummary, getLowStockProducts } from './dashboard-repository'
+import {
+  getDashboardSummary,
+  getLowStockProducts,
+  getTopProducts,
+  getSevenDaySales
+} from './dashboard-repository'
 import type { SaleLineInput } from '../../../shared/sale'
 
 function daysAgoIso(days: number): string {
@@ -181,5 +186,123 @@ describe('getLowStockProducts', () => {
 
     const result = getLowStockProducts(client.db)
     expect(result.map((p) => p.name)).toEqual(['Right at default'])
+  })
+})
+
+describe('getTopProducts', () => {
+  let dbFile: string
+  let client: DbClient
+
+  beforeEach(() => {
+    dbFile = path.join(os.tmpdir(), `pos-dashboard-repo-top-${Date.now()}-${Math.random()}.db`)
+    client = createDbClient(dbFile, path.resolve(__dirname, '../../../../drizzle'))
+  })
+
+  afterEach(() => {
+    client.sqlite.close()
+    if (fs.existsSync(dbFile)) fs.rmSync(dbFile)
+  })
+
+  it('ranks products by total quantity sold, descending', () => {
+    const coke = createProduct(client.db, { barcode: '111', name: 'Coke', priceCents: 2000, stock: 50 })
+    const water = createProduct(client.db, { barcode: '222', name: 'Water', priceCents: 1000, stock: 50 })
+
+    completeSale(client.db, [
+      { productId: coke.id, productName: coke.name, unitPriceCents: coke.priceCents, quantity: 2 }
+    ])
+    completeSale(client.db, [
+      { productId: water.id, productName: water.name, unitPriceCents: water.priceCents, quantity: 5 }
+    ])
+
+    const top = getTopProducts(client.db)
+    expect(top[0]).toMatchObject({ productId: water.id, productName: 'Water', totalQuantity: 5, totalRevenueCents: 5000 })
+    expect(top[1]).toMatchObject({ productId: coke.id, productName: 'Coke', totalQuantity: 2, totalRevenueCents: 4000 })
+  })
+
+  it('sums quantity across multiple sales of the same product', () => {
+    const coke = createProduct(client.db, { barcode: '111', name: 'Coke', priceCents: 2000, stock: 50 })
+    completeSale(client.db, [
+      { productId: coke.id, productName: coke.name, unitPriceCents: coke.priceCents, quantity: 2 }
+    ])
+    completeSale(client.db, [
+      { productId: coke.id, productName: coke.name, unitPriceCents: coke.priceCents, quantity: 3 }
+    ])
+
+    const top = getTopProducts(client.db)
+    expect(top).toHaveLength(1)
+    expect(top[0].totalQuantity).toBe(5)
+  })
+
+  it('respects the limit', () => {
+    const a = createProduct(client.db, { barcode: '1', name: 'A', priceCents: 100, stock: 50 })
+    const b = createProduct(client.db, { barcode: '2', name: 'B', priceCents: 100, stock: 50 })
+    const c = createProduct(client.db, { barcode: '3', name: 'C', priceCents: 100, stock: 50 })
+    completeSale(client.db, [{ productId: a.id, productName: a.name, unitPriceCents: 100, quantity: 3 }])
+    completeSale(client.db, [{ productId: b.id, productName: b.name, unitPriceCents: 100, quantity: 2 }])
+    completeSale(client.db, [{ productId: c.id, productName: c.name, unitPriceCents: 100, quantity: 1 }])
+
+    const top = getTopProducts(client.db, 2)
+    expect(top).toHaveLength(2)
+    expect(top.map((p) => p.productId)).toEqual([a.id, b.id])
+  })
+
+  it('returns an empty array when there are no sales', () => {
+    expect(getTopProducts(client.db)).toEqual([])
+  })
+})
+
+describe('getSevenDaySales', () => {
+  let dbFile: string
+  let client: DbClient
+
+  beforeEach(() => {
+    dbFile = path.join(os.tmpdir(), `pos-dashboard-repo-7day-${Date.now()}-${Math.random()}.db`)
+    client = createDbClient(dbFile, path.resolve(__dirname, '../../../../drizzle'))
+  })
+
+  afterEach(() => {
+    client.sqlite.close()
+    if (fs.existsSync(dbFile)) fs.rmSync(dbFile)
+  })
+
+  it('returns exactly 7 entries, oldest first, all zero when there are no sales', () => {
+    const result = getSevenDaySales(client.db)
+    expect(result).toHaveLength(7)
+    expect(result.every((day) => day.totalCents === 0)).toBe(true)
+    expect(new Date(result[0].date).getTime()).toBeLessThan(new Date(result[6].date).getTime())
+  })
+
+  it("includes today's sales in the last bucket", () => {
+    client.db
+      .insert(sales)
+      .values({ id: 'today-sale', totalCents: 1500, status: 'COMPLETED', createdAt: new Date().toISOString() })
+      .run()
+
+    const result = getSevenDaySales(client.db)
+    expect(result[6].totalCents).toBe(1500)
+  })
+
+  it('includes a sale from exactly 6 days ago in the first bucket', () => {
+    const sixDaysAgo = new Date()
+    sixDaysAgo.setDate(sixDaysAgo.getDate() - 6)
+    client.db
+      .insert(sales)
+      .values({ id: 'six-days-ago-sale', totalCents: 2500, status: 'COMPLETED', createdAt: sixDaysAgo.toISOString() })
+      .run()
+
+    const result = getSevenDaySales(client.db)
+    expect(result[0].totalCents).toBe(2500)
+  })
+
+  it('excludes a sale from 7 days ago (one day outside the window)', () => {
+    const sevenDaysAgo = new Date()
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+    client.db
+      .insert(sales)
+      .values({ id: 'seven-days-ago-sale', totalCents: 9999, status: 'COMPLETED', createdAt: sevenDaysAgo.toISOString() })
+      .run()
+
+    const result = getSevenDaySales(client.db)
+    expect(result.reduce((sum, day) => sum + day.totalCents, 0)).toBe(0)
   })
 })

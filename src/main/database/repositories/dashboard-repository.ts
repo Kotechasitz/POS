@@ -1,7 +1,7 @@
-import { and, asc, eq, gte, inArray, lt, lte } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, inArray, lt, lte, sql } from 'drizzle-orm'
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import { products, sales, saleItems } from '../schema'
-import type { DashboardSummary } from '../../../shared/dashboard'
+import type { DashboardSummary, TopProduct, DailySales } from '../../../shared/dashboard'
 import type { ProductRecord } from '../../../shared/product'
 import { Money } from '../../../shared/money'
 
@@ -59,4 +59,63 @@ export function getLowStockProducts(
     .where(and(eq(products.isActive, true), lte(products.stock, threshold)))
     .orderBy(asc(products.stock))
     .all() as ProductRecord[]
+}
+
+export function getTopProducts(db: BetterSQLite3Database, limit: number = 5): TopProduct[] {
+  return db
+    .select({
+      productId: saleItems.productId,
+      productName: products.name,
+      totalQuantity: sql<number>`SUM(${saleItems.quantity})`,
+      totalRevenueCents: sql<number>`SUM(${saleItems.totalCents})`
+    })
+    .from(saleItems)
+    .innerJoin(sales, eq(saleItems.saleId, sales.id))
+    .innerJoin(products, eq(saleItems.productId, products.id))
+    .where(eq(sales.status, 'COMPLETED'))
+    .groupBy(saleItems.productId, products.name)
+    .orderBy(desc(sql`SUM(${saleItems.quantity})`))
+    .limit(limit)
+    .all()
+}
+
+function formatDateOnly(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+export function getSevenDaySales(
+  db: BetterSQLite3Database,
+  referenceDate: Date = new Date()
+): DailySales[] {
+  const results: DailySales[] = []
+
+  for (let daysAgo = 6; daysAgo >= 0; daysAgo--) {
+    const day = new Date(referenceDate)
+    day.setDate(day.getDate() - daysAgo)
+    const start = startOfDay(day)
+    const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1)
+
+    const daysSales = db
+      .select()
+      .from(sales)
+      .where(
+        and(
+          eq(sales.status, 'COMPLETED'),
+          gte(sales.createdAt, start.toISOString()),
+          lt(sales.createdAt, end.toISOString())
+        )
+      )
+      .all()
+
+    const totalCents = daysSales
+      .reduce((total, sale) => total.add(Money.fromCents(sale.totalCents)), Money.fromCents(0))
+      .cents
+
+    results.push({ date: formatDateOnly(start), totalCents })
+  }
+
+  return results
 }
