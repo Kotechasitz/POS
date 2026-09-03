@@ -35,15 +35,12 @@ function PosPage(): React.JSX.Element {
     }
   }, [])
 
-  // A success banner is only meaningful for the sale that just finished. As
-  // soon as the cashier starts a new sale (the cart goes from empty back to
-  // non-empty), it no longer describes what's on screen — hide it.
-  useEffect(() => {
-    if (items.length > 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+  function handleBarcodeKeyDown(event: React.KeyboardEvent<HTMLInputElement>): void {
+    if (event.key === 'Enter' && successMessage) {
       setSuccessMessage(null)
     }
-  }, [items.length])
+    handleKeyDown(event)
+  }
 
   async function handleFinishSale(): Promise<void> {
     const sale = await completeSale()
@@ -68,13 +65,13 @@ function PosPage(): React.JSX.Element {
           ref={inputRef}
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          onKeyDown={handleKeyDown}
+          onKeyDown={handleBarcodeKeyDown}
           placeholder="Scan or type a barcode, then press Enter"
           autoComplete="off"
         />
       </div>
 
-      {(error || saleError) && (
+      {(error || saleError) && !successMessage && (
         <p role="alert" className="alert alert-danger">
           {error ?? saleError}
         </p>
