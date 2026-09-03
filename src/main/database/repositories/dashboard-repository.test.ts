@@ -59,7 +59,6 @@ describe('getDashboardSummary', () => {
 
   it("excludes sales from before today", () => {
     const coke = createProduct(client.db, { barcode: '111', name: 'Coke', priceCents: 2000, stock: 50 })
-    const now = new Date().toISOString()
     // Directly insert a sale timestamped yesterday — completeSale always uses
     // the real current time, so a fabricated old row is inserted straight
     // into the table to control the date deterministically.
@@ -82,7 +81,55 @@ describe('getDashboardSummary', () => {
 
     const summary = getDashboardSummary(client.db)
     expect(summary).toEqual({ salesTodayCents: 0, orderCountToday: 0, unitsSoldToday: 0 })
-    void now
+  })
+
+  it('buckets "today" by the local calendar day, not the UTC calendar day', () => {
+    const referenceDate = new Date()
+    const offsetMinutes = referenceDate.getTimezoneOffset()
+    if (offsetMinutes === 0) {
+      // No local/UTC distinction exists to test on a UTC-clocked machine —
+      // the other getDashboardSummary tests still cover correctness here.
+      return
+    }
+
+    const localStart = new Date(
+      referenceDate.getFullYear(),
+      referenceDate.getMonth(),
+      referenceDate.getDate()
+    )
+    const utcStart = new Date(
+      Date.UTC(referenceDate.getUTCFullYear(), referenceDate.getUTCMonth(), referenceDate.getUTCDate())
+    )
+
+    if (localStart.getTime() === utcStart.getTime()) {
+      // The two boundaries happen to coincide for this instant — nothing to
+      // distinguish right now.
+      return
+    }
+
+    // Place the fabricated sale 1ms before whichever boundary is later, so
+    // it falls strictly between the two candidate "start of today" instants
+    // — "today" under one interpretation, "yesterday" (or "tomorrow") under
+    // the other.
+    const laterBoundary = Math.max(localStart.getTime(), utcStart.getTime())
+    const testInstant = new Date(laterBoundary - 1)
+
+    const coke = createProduct(client.db, { barcode: 'tzboundary', name: 'Coke', priceCents: 2000, stock: 50 })
+    client.db
+      .insert(sales)
+      .values({
+        id: 'tz-boundary-sale',
+        totalCents: 9999,
+        status: 'COMPLETED',
+        createdAt: testInstant.toISOString()
+      })
+      .run()
+
+    // What a CORRECT local-day implementation should decide for this instant:
+    const expectedIncluded = testInstant.getTime() >= localStart.getTime()
+
+    const summary = getDashboardSummary(client.db, referenceDate)
+    expect(summary.salesTodayCents).toBe(expectedIncluded ? 9999 : 0)
   })
 
   it('excludes sales whose status is not COMPLETED', () => {

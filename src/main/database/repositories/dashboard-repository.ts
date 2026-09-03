@@ -17,7 +17,7 @@ export function getDashboardSummary(
   referenceDate: Date = new Date()
 ): DashboardSummary {
   const start = startOfDay(referenceDate)
-  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000)
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1)
 
   const todaysSales = db
     .select()
