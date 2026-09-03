@@ -119,7 +119,7 @@ describe('getDashboardSummary', () => {
     const laterBoundary = Math.max(localStart.getTime(), utcStart.getTime())
     const testInstant = new Date(laterBoundary - 1)
 
-    const coke = createProduct(client.db, { barcode: 'tzboundary', name: 'Coke', priceCents: 2000, stock: 50 })
+    createProduct(client.db, { barcode: 'tzboundary', name: 'Coke', priceCents: 2000, stock: 50 })
     client.db
       .insert(sales)
       .values({

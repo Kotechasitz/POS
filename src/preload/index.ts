@@ -2,6 +2,8 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import type { CreateProductInput, ProductRecord, UpdateProductInput } from '../shared/product'
 import type { SaleLineInput, SaleRecord } from '../shared/sale'
+import type { DashboardSummary, TopProduct, DailySales } from '../shared/dashboard'
+import type { SaleListItem } from '../shared/salesHistory'
 
 // Custom APIs for renderer
 const api = {
@@ -18,6 +20,19 @@ const api = {
   sales: {
     complete: (items: SaleLineInput[]): Promise<SaleRecord> =>
       ipcRenderer.invoke('sales:complete', items)
+  },
+  dashboard: {
+    summary: (): Promise<DashboardSummary> => ipcRenderer.invoke('dashboard:summary'),
+    topProducts: (limit?: number): Promise<TopProduct[]> =>
+      ipcRenderer.invoke('dashboard:topProducts', limit),
+    sevenDaySales: (): Promise<DailySales[]> => ipcRenderer.invoke('dashboard:sevenDaySales'),
+    lowStock: (threshold?: number): Promise<ProductRecord[]> =>
+      ipcRenderer.invoke('dashboard:lowStock', threshold)
+  },
+  salesHistory: {
+    list: (): Promise<SaleListItem[]> => ipcRenderer.invoke('salesHistory:list'),
+    detail: (saleId: string): Promise<SaleRecord | null> =>
+      ipcRenderer.invoke('salesHistory:detail', saleId)
   }
 }
 

@@ -8,6 +8,8 @@ import { getDbPath } from './database/db-path'
 import { products } from './database/schema'
 import { registerProductHandlers } from './ipc/register-product-handlers'
 import { registerSaleHandlers } from './ipc/register-sale-handlers'
+import { registerDashboardHandlers } from './ipc/register-dashboard-handlers'
+import { registerSalesHistoryHandlers } from './ipc/register-sales-history-handlers'
 
 let dbClient: DbClient
 
@@ -82,6 +84,8 @@ app.whenReady().then(async () => {
 
   registerProductHandlers(dbClient.db)
   registerSaleHandlers(dbClient.db)
+  registerDashboardHandlers(dbClient.db)
+  registerSalesHistoryHandlers(dbClient.db)
 
   createWindow()
 
