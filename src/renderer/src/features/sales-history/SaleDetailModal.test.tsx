@@ -49,4 +49,24 @@ describe('SaleDetailModal', () => {
     await user.keyboard('{Escape}')
     expect(onClose).toHaveBeenCalled()
   })
+
+  it('calls onClose when the backdrop (outside the dialog panel) is clicked', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    render(<SaleDetailModal sale={sale} onClose={onClose} />)
+
+    await user.click(screen.getByRole('dialog').parentElement as HTMLElement)
+
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not call onClose when clicking inside the dialog panel', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    render(<SaleDetailModal sale={sale} onClose={onClose} />)
+
+    await user.click(screen.getByRole('dialog'))
+
+    expect(onClose).not.toHaveBeenCalled()
+  })
 })

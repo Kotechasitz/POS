@@ -88,4 +88,18 @@ describe('SalesHistoryPage', () => {
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('boom'))
   })
+
+  it('strips the Electron IPC wrapper text from a detail-fetch failure', async () => {
+    const user = userEvent.setup()
+    ;(window.api.salesHistory.detail as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error("Error invoking remote method 'salesHistory:detail': Something broke")
+    )
+    render(<SalesHistoryPage />)
+    await waitFor(() => expect(screen.getByText('#1')).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: 'View' }))
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Something broke'))
+    expect(screen.getByRole('alert')).not.toHaveTextContent('Error invoking remote method')
+  })
 })

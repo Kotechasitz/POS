@@ -3,6 +3,7 @@ import { useSalesHistory } from './useSalesHistory'
 import SaleDetailModal from './SaleDetailModal'
 import { Money } from '../../../../shared/money'
 import type { SaleRecord } from '../../../../shared/sale'
+import { toUserMessage } from '../../lib/ipcError'
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString()
@@ -23,7 +24,7 @@ function SalesHistoryPage(): React.JSX.Element {
         setDetailError(`Sale ${saleId} was not found`)
       }
     } catch (err) {
-      setDetailError(err instanceof Error ? err.message : String(err))
+      setDetailError(toUserMessage(err))
     }
   }
 
