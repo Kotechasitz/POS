@@ -6,7 +6,8 @@ import { eq } from 'drizzle-orm'
 import { createDbClient, type DbClient } from '../client'
 import { products, sales, saleItems, stockTransactions } from '../schema'
 import { createProduct } from './product-repository'
-import { completeSale, EmptyCartError, InsufficientStockError } from './sale-repository'
+import { completeSale, EmptyCartError, InsufficientStockError, SaleValidationError } from './sale-repository'
+import { ProductNotFoundError } from './product-repository'
 import type { SaleLineInput } from '../../../shared/sale'
 
 describe('completeSale', () => {
@@ -150,5 +151,46 @@ describe('completeSale', () => {
       .where(eq(saleItems.saleId, sale.id))
       .get()
     expect(persistedItem?.priceCents).toBe(2000)
+  })
+
+  it('rejects a line with an empty product id', () => {
+    expect(() =>
+      completeSale(client.db, [{ productId: '', productName: 'X', unitPriceCents: 100, quantity: 1 }])
+    ).toThrow(SaleValidationError)
+  })
+
+  it('rejects a line with a non-positive quantity', () => {
+    const water = createProduct(client.db, { barcode: '222', name: 'Water', priceCents: 1000, stock: 5 })
+    expect(() =>
+      completeSale(client.db, [
+        { productId: water.id, productName: water.name, unitPriceCents: water.priceCents, quantity: 0 }
+      ])
+    ).toThrow(SaleValidationError)
+  })
+
+  it('rejects a line with a non-integer quantity', () => {
+    const water = createProduct(client.db, { barcode: '222', name: 'Water', priceCents: 1000, stock: 5 })
+    expect(() =>
+      completeSale(client.db, [
+        { productId: water.id, productName: water.name, unitPriceCents: water.priceCents, quantity: 1.5 }
+      ])
+    ).toThrow(SaleValidationError)
+  })
+
+  it('rejects a line with a negative unit price', () => {
+    const water = createProduct(client.db, { barcode: '222', name: 'Water', priceCents: 1000, stock: 5 })
+    expect(() =>
+      completeSale(client.db, [
+        { productId: water.id, productName: water.name, unitPriceCents: -100, quantity: 1 }
+      ])
+    ).toThrow(SaleValidationError)
+  })
+
+  it('throws ProductNotFoundError for a product id that does not exist', () => {
+    expect(() =>
+      completeSale(client.db, [
+        { productId: 'does-not-exist', productName: 'Ghost', unitPriceCents: 100, quantity: 1 }
+      ])
+    ).toThrow(ProductNotFoundError)
   })
 })

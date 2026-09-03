@@ -6,6 +6,13 @@ import type { SaleLineInput, SaleItemRecord, SaleRecord } from '../../../shared/
 import { Money } from '../../../shared/money'
 import { ProductNotFoundError } from './product-repository'
 
+export class SaleValidationError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'SaleValidationError'
+  }
+}
+
 export class EmptyCartError extends Error {
   constructor() {
     super('Cannot complete a sale with an empty cart')
@@ -22,13 +29,13 @@ export class InsufficientStockError extends Error {
 
 function validateLine(line: SaleLineInput): void {
   if (!line.productId || line.productId.trim().length === 0) {
-    throw new Error('Sale line is missing a product id')
+    throw new SaleValidationError('Sale line is missing a product id')
   }
   if (!Number.isInteger(line.quantity) || line.quantity < 1) {
-    throw new Error(`Sale line quantity must be a positive integer, got ${line.quantity}`)
+    throw new SaleValidationError(`Sale line quantity must be a positive integer, got ${line.quantity}`)
   }
   if (!Number.isInteger(line.unitPriceCents) || line.unitPriceCents < 0) {
-    throw new Error(`Sale line price must be a non-negative integer, got ${line.unitPriceCents}`)
+    throw new SaleValidationError(`Sale line price must be a non-negative integer, got ${line.unitPriceCents}`)
   }
 }
 
