@@ -7,6 +7,7 @@ import { createDbClient, type DbClient } from './database/client'
 import { getDbPath } from './database/db-path'
 import { products } from './database/schema'
 import { registerProductHandlers } from './ipc/register-product-handlers'
+import { registerSaleHandlers } from './ipc/register-sale-handlers'
 
 let dbClient: DbClient
 
@@ -80,6 +81,7 @@ app.whenReady().then(async () => {
   })
 
   registerProductHandlers(dbClient.db)
+  registerSaleHandlers(dbClient.db)
 
   createWindow()
 

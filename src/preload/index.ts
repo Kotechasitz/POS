@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import type { CreateProductInput, ProductRecord, UpdateProductInput } from '../shared/product'
+import type { SaleLineInput, SaleRecord } from '../shared/sale'
 
 // Custom APIs for renderer
 const api = {
@@ -13,6 +14,10 @@ const api = {
       ipcRenderer.invoke('products:update', id, input),
     getByBarcode: (barcode: string): Promise<ProductRecord | null> =>
       ipcRenderer.invoke('products:getByBarcode', barcode)
+  },
+  sales: {
+    complete: (items: SaleLineInput[]): Promise<SaleRecord> =>
+      ipcRenderer.invoke('sales:complete', items)
   }
 }
 
