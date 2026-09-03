@@ -1,6 +1,7 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useCartStore, cartTotalCents } from './cartStore'
 import { useBarcodeScan } from './useBarcodeScan'
+import { useCompleteSale } from './useCompleteSale'
 import CartTable from './CartTable'
 import { Money } from '../../../../shared/money'
 
@@ -11,6 +12,8 @@ function PosPage(): React.JSX.Element {
   const removeItem = useCartStore((state) => state.removeItem)
   const clear = useCartStore((state) => state.clear)
   const { inputRef, value, setValue, error, handleKeyDown } = useBarcodeScan()
+  const { completing, error: saleError, completeSale } = useCompleteSale()
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -31,6 +34,23 @@ function PosPage(): React.JSX.Element {
       cancelled = true
     }
   }, [])
+
+  // A success banner is only meaningful for the sale that just finished. As
+  // soon as the cashier starts a new sale (the cart goes from empty back to
+  // non-empty), it no longer describes what's on screen — hide it.
+  useEffect(() => {
+    if (items.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSuccessMessage(null)
+    }
+  }, [items.length])
+
+  async function handleFinishSale(): Promise<void> {
+    const sale = await completeSale()
+    if (sale) {
+      setSuccessMessage(`Sale completed — ${Money.fromCents(sale.totalCents).format()}`)
+    }
+  }
 
   return (
     <div className="products-page">
@@ -54,9 +74,15 @@ function PosPage(): React.JSX.Element {
         />
       </div>
 
-      {error && (
+      {(error || saleError) && (
         <p role="alert" className="alert alert-danger">
-          {error}
+          {error ?? saleError}
+        </p>
+      )}
+
+      {successMessage && (
+        <p role="status" className="alert alert-success">
+          {successMessage}
         </p>
       )}
 
@@ -74,9 +100,17 @@ function PosPage(): React.JSX.Element {
           type="button"
           className="btn btn-secondary"
           onClick={clear}
-          disabled={items.length === 0}
+          disabled={items.length === 0 || completing}
         >
           Clear Cart
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={handleFinishSale}
+          disabled={items.length === 0 || completing}
+        >
+          {completing ? 'Completing…' : 'Finish Sale'}
         </button>
       </div>
     </div>

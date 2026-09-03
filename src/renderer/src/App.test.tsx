@@ -12,6 +12,9 @@ describe('App', () => {
         create: vi.fn(),
         update: vi.fn(),
         getByBarcode: vi.fn()
+      },
+      sales: {
+        complete: vi.fn()
       }
     } as unknown as Window['api']
   })
