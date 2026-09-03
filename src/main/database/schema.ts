@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
+import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core'
 import type { ProductRecord } from '../../shared/product'
 
 export const products = sqliteTable('products', {
@@ -28,12 +28,18 @@ type AssertProductRowMatchesContract = ProductRow extends ProductRecord
 // noUnusedLocals doesn't flag it — nothing is meant to import this type.
 export type ProductRowContractCheck = AssertProductRowMatchesContract
 
-export const sales = sqliteTable('sales', {
-  id: text('id').primaryKey(),
-  totalCents: integer('total_cents').notNull(),
-  status: text('status').notNull().default('COMPLETED'),
-  createdAt: text('created_at').notNull()
-})
+export const sales = sqliteTable(
+  'sales',
+  {
+    id: text('id').primaryKey(),
+    totalCents: integer('total_cents').notNull(),
+    status: text('status').notNull().default('COMPLETED'),
+    createdAt: text('created_at').notNull()
+  },
+  (table) => ({
+    createdAtIdx: index('sales_created_at_idx').on(table.createdAt)
+  })
+)
 
 export const saleItems = sqliteTable('sale_items', {
   id: text('id').primaryKey(),
