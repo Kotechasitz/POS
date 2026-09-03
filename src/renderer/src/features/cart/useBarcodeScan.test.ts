@@ -95,4 +95,17 @@ describe('useBarcodeScan', () => {
 
     expect(window.api.products.getByBarcode).not.toHaveBeenCalled()
   })
+
+  it('clears the error via clearError', async () => {
+    ;(window.api.products.getByBarcode as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+    const { result } = renderHook(() => useBarcodeScan())
+
+    act(() => result.current.setValue('999'))
+    await pressEnter(result.current.handleKeyDown)
+    await waitFor(() => expect(result.current.error).toBe('Barcode not found: 999'))
+
+    act(() => result.current.clearError())
+
+    expect(result.current.error).toBeNull()
+  })
 })

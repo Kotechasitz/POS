@@ -11,7 +11,7 @@ function PosPage(): React.JSX.Element {
   const decrementItem = useCartStore((state) => state.decrementItem)
   const removeItem = useCartStore((state) => state.removeItem)
   const clear = useCartStore((state) => state.clear)
-  const { inputRef, value, setValue, error, handleKeyDown } = useBarcodeScan()
+  const { inputRef, value, setValue, error, handleKeyDown, clearError } = useBarcodeScan()
   const { completing, error: saleError, completeSale } = useCompleteSale()
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
@@ -36,8 +36,13 @@ function PosPage(): React.JSX.Element {
   }, [])
 
   function handleBarcodeKeyDown(event: React.KeyboardEvent<HTMLInputElement>): void {
-    if (event.key === 'Enter' && successMessage) {
-      setSuccessMessage(null)
+    if (event.key === 'Enter') {
+      if (successMessage) {
+        setSuccessMessage(null)
+      }
+      if (error) {
+        clearError()
+      }
     }
     handleKeyDown(event)
   }
