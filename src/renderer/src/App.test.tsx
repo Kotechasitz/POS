@@ -15,6 +15,18 @@ describe('App', () => {
       },
       sales: {
         complete: vi.fn()
+      },
+      dashboard: {
+        summary: vi
+          .fn()
+          .mockResolvedValue({ salesTodayCents: 0, orderCountToday: 0, unitsSoldToday: 0 }),
+        topProducts: vi.fn().mockResolvedValue([]),
+        sevenDaySales: vi.fn().mockResolvedValue([]),
+        lowStock: vi.fn().mockResolvedValue([])
+      },
+      salesHistory: {
+        list: vi.fn().mockResolvedValue([]),
+        detail: vi.fn()
       }
     } as unknown as Window['api']
   })
@@ -33,6 +45,24 @@ describe('App', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Add Product' })).toBeInTheDocument()
     )
+  })
+
+  it('switches to the Dashboard screen when its tab is clicked', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Dashboard' }))
+
+    await waitFor(() => expect(screen.getByText('Sales Today')).toBeInTheDocument())
+  })
+
+  it('switches to the Sales History screen when its tab is clicked', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Sales History' }))
+
+    await waitFor(() => expect(screen.getByText('No sales yet')).toBeInTheDocument())
   })
 
   it('switches back to the POS screen', async () => {
