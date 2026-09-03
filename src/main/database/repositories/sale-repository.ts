@@ -27,15 +27,26 @@ export class InsufficientStockError extends Error {
   }
 }
 
+export class ProductNotAvailableError extends Error {
+  constructor(productName: string) {
+    super(`${productName} is not available for sale`)
+    this.name = 'ProductNotAvailableError'
+  }
+}
+
 function validateLine(line: SaleLineInput): void {
   if (!line.productId || line.productId.trim().length === 0) {
     throw new SaleValidationError('Sale line is missing a product id')
   }
   if (!Number.isInteger(line.quantity) || line.quantity < 1) {
-    throw new SaleValidationError(`Sale line quantity must be a positive integer, got ${line.quantity}`)
+    throw new SaleValidationError(
+      `Sale line quantity must be a positive integer, got ${line.quantity}`
+    )
   }
   if (!Number.isInteger(line.unitPriceCents) || line.unitPriceCents < 0) {
-    throw new SaleValidationError(`Sale line price must be a non-negative integer, got ${line.unitPriceCents}`)
+    throw new SaleValidationError(
+      `Sale line price must be a non-negative integer, got ${line.unitPriceCents}`
+    )
   }
 }
 
@@ -60,8 +71,11 @@ export function completeSale(db: BetterSQLite3Database, items: SaleLineInput[]):
       if (!product) {
         throw new ProductNotFoundError(line.productId)
       }
+      if (!product.isActive) {
+        throw new ProductNotAvailableError(product.name)
+      }
       if (product.stock < line.quantity) {
-        throw new InsufficientStockError(line.productName, product.stock, line.quantity)
+        throw new InsufficientStockError(product.name, product.stock, line.quantity)
       }
 
       // Global Constraints: money math always goes through Money, never raw
@@ -109,6 +123,12 @@ export function completeSale(db: BetterSQLite3Database, items: SaleLineInput[]):
       tx.insert(saleItems).values(item).run()
     })
 
-    return { id: saleId, totalCents: total.cents, status: 'COMPLETED', createdAt: now, items: itemRecords }
+    return {
+      id: saleId,
+      totalCents: total.cents,
+      status: 'COMPLETED',
+      createdAt: now,
+      items: itemRecords
+    }
   })
 }

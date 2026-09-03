@@ -7,6 +7,7 @@ export interface UseCompleteSaleResult {
   completing: boolean
   error: string | null
   completeSale: () => Promise<SaleRecord | null>
+  clearError: () => void
 }
 
 export function useCompleteSale(): UseCompleteSaleResult {
@@ -40,5 +41,9 @@ export function useCompleteSale(): UseCompleteSaleResult {
     }
   }, [])
 
-  return { completing, error, completeSale }
+  const clearError = useCallback(() => {
+    setError(null)
+  }, [])
+
+  return { completing, error, completeSale, clearError }
 }

@@ -16,6 +16,7 @@ vi.mock('electron', () => ({
 import { registerSaleHandlers } from './register-sale-handlers'
 import { createDbClient, type DbClient } from '../database/client'
 import { createProduct } from '../database/repositories/product-repository'
+import { InsufficientStockError } from '../database/repositories/sale-repository'
 import type { SaleLineInput, SaleRecord } from '../../shared/sale'
 
 describe('registerSaleHandlers', () => {
@@ -39,7 +40,12 @@ describe('registerSaleHandlers', () => {
   })
 
   it('sales:complete completes a sale and decrements stock', () => {
-    const water = createProduct(client.db, { barcode: '222', name: 'Water', priceCents: 1000, stock: 5 })
+    const water = createProduct(client.db, {
+      barcode: '222',
+      name: 'Water',
+      priceCents: 1000,
+      stock: 5
+    })
     const completeHandler = handlers.get('sales:complete')!
 
     const line: SaleLineInput = {
@@ -55,7 +61,12 @@ describe('registerSaleHandlers', () => {
   })
 
   it('sales:complete propagates an error for an insufficient-stock line', () => {
-    const water = createProduct(client.db, { barcode: '222', name: 'Water', priceCents: 1000, stock: 1 })
+    const water = createProduct(client.db, {
+      barcode: '222',
+      name: 'Water',
+      priceCents: 1000,
+      stock: 1
+    })
     const completeHandler = handlers.get('sales:complete')!
 
     const line: SaleLineInput = {
@@ -64,6 +75,6 @@ describe('registerSaleHandlers', () => {
       unitPriceCents: water.priceCents,
       quantity: 2
     }
-    expect(() => completeHandler({}, [line])).toThrow()
+    expect(() => completeHandler({}, [line])).toThrow(InsufficientStockError)
   })
 })

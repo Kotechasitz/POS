@@ -5,8 +5,14 @@ import os from 'node:os'
 import { eq } from 'drizzle-orm'
 import { createDbClient, type DbClient } from '../client'
 import { products, sales, saleItems, stockTransactions } from '../schema'
-import { createProduct } from './product-repository'
-import { completeSale, EmptyCartError, InsufficientStockError, SaleValidationError } from './sale-repository'
+import { createProduct, updateProduct } from './product-repository'
+import {
+  completeSale,
+  EmptyCartError,
+  InsufficientStockError,
+  ProductNotAvailableError,
+  SaleValidationError
+} from './sale-repository'
 import { ProductNotFoundError } from './product-repository'
 import type { SaleLineInput } from '../../../shared/sale'
 
@@ -69,12 +75,27 @@ describe('completeSale', () => {
   })
 
   it('completes a multi-line sale and sums the total across lines', () => {
-    const coke = createProduct(client.db, { barcode: '111', name: 'Coke', priceCents: 2000, stock: 10 })
-    const water = createProduct(client.db, { barcode: '222', name: 'Water', priceCents: 1000, stock: 10 })
+    const coke = createProduct(client.db, {
+      barcode: '111',
+      name: 'Coke',
+      priceCents: 2000,
+      stock: 10
+    })
+    const water = createProduct(client.db, {
+      barcode: '222',
+      name: 'Water',
+      priceCents: 1000,
+      stock: 10
+    })
 
     const sale = completeSale(client.db, [
       { productId: coke.id, productName: coke.name, unitPriceCents: coke.priceCents, quantity: 2 },
-      { productId: water.id, productName: water.name, unitPriceCents: water.priceCents, quantity: 3 }
+      {
+        productId: water.id,
+        productName: water.name,
+        unitPriceCents: water.priceCents,
+        quantity: 3
+      }
     ])
 
     expect(sale.totalCents).toBe(2000 * 2 + 1000 * 3)
@@ -90,13 +111,33 @@ describe('completeSale', () => {
   })
 
   it('rejects a line that would oversell stock, and rolls back the entire sale', () => {
-    const coke = createProduct(client.db, { barcode: '111', name: 'Coke', priceCents: 2000, stock: 5 })
-    const water = createProduct(client.db, { barcode: '222', name: 'Water', priceCents: 1000, stock: 1 })
+    const coke = createProduct(client.db, {
+      barcode: '111',
+      name: 'Coke',
+      priceCents: 2000,
+      stock: 5
+    })
+    const water = createProduct(client.db, {
+      barcode: '222',
+      name: 'Water',
+      priceCents: 1000,
+      stock: 1
+    })
 
     expect(() =>
       completeSale(client.db, [
-        { productId: coke.id, productName: coke.name, unitPriceCents: coke.priceCents, quantity: 2 },
-        { productId: water.id, productName: water.name, unitPriceCents: water.priceCents, quantity: 2 }
+        {
+          productId: coke.id,
+          productName: coke.name,
+          unitPriceCents: coke.priceCents,
+          quantity: 2
+        },
+        {
+          productId: water.id,
+          productName: water.name,
+          unitPriceCents: water.priceCents,
+          quantity: 2
+        }
       ])
     ).toThrow(InsufficientStockError)
 
@@ -110,20 +151,40 @@ describe('completeSale', () => {
   })
 
   it('rejects selling exactly one more unit than is in stock', () => {
-    const water = createProduct(client.db, { barcode: '222', name: 'Water', priceCents: 1000, stock: 1 })
+    const water = createProduct(client.db, {
+      barcode: '222',
+      name: 'Water',
+      priceCents: 1000,
+      stock: 1
+    })
 
     expect(() =>
       completeSale(client.db, [
-        { productId: water.id, productName: water.name, unitPriceCents: water.priceCents, quantity: 2 }
+        {
+          productId: water.id,
+          productName: water.name,
+          unitPriceCents: water.priceCents,
+          quantity: 2
+        }
       ])
     ).toThrow(InsufficientStockError)
   })
 
   it('allows selling exactly the remaining stock down to zero', () => {
-    const water = createProduct(client.db, { barcode: '222', name: 'Water', priceCents: 1000, stock: 2 })
+    const water = createProduct(client.db, {
+      barcode: '222',
+      name: 'Water',
+      priceCents: 1000,
+      stock: 2
+    })
 
     const sale = completeSale(client.db, [
-      { productId: water.id, productName: water.name, unitPriceCents: water.priceCents, quantity: 2 }
+      {
+        productId: water.id,
+        productName: water.name,
+        unitPriceCents: water.priceCents,
+        quantity: 2
+      }
     ])
 
     expect(sale.totalCents).toBe(2000)
@@ -132,18 +193,19 @@ describe('completeSale', () => {
   })
 
   it('keeps the sale_items price snapshot unchanged after the product price is edited later (spec §14.1)', () => {
-    const coke = createProduct(client.db, { barcode: '111', name: 'Coke', priceCents: 2000, stock: 5 })
+    const coke = createProduct(client.db, {
+      barcode: '111',
+      name: 'Coke',
+      priceCents: 2000,
+      stock: 5
+    })
 
     const sale = completeSale(client.db, [
       { productId: coke.id, productName: coke.name, unitPriceCents: coke.priceCents, quantity: 1 }
     ])
     expect(sale.items[0].priceCents).toBe(2000)
 
-    client.db
-      .update(products)
-      .set({ priceCents: 3500 })
-      .where(eq(products.id, coke.id))
-      .run()
+    client.db.update(products).set({ priceCents: 3500 }).where(eq(products.id, coke.id)).run()
 
     const persistedItem = client.db
       .select()
@@ -155,30 +217,57 @@ describe('completeSale', () => {
 
   it('rejects a line with an empty product id', () => {
     expect(() =>
-      completeSale(client.db, [{ productId: '', productName: 'X', unitPriceCents: 100, quantity: 1 }])
+      completeSale(client.db, [
+        { productId: '', productName: 'X', unitPriceCents: 100, quantity: 1 }
+      ])
     ).toThrow(SaleValidationError)
   })
 
   it('rejects a line with a non-positive quantity', () => {
-    const water = createProduct(client.db, { barcode: '222', name: 'Water', priceCents: 1000, stock: 5 })
+    const water = createProduct(client.db, {
+      barcode: '222',
+      name: 'Water',
+      priceCents: 1000,
+      stock: 5
+    })
     expect(() =>
       completeSale(client.db, [
-        { productId: water.id, productName: water.name, unitPriceCents: water.priceCents, quantity: 0 }
+        {
+          productId: water.id,
+          productName: water.name,
+          unitPriceCents: water.priceCents,
+          quantity: 0
+        }
       ])
     ).toThrow(SaleValidationError)
   })
 
   it('rejects a line with a non-integer quantity', () => {
-    const water = createProduct(client.db, { barcode: '222', name: 'Water', priceCents: 1000, stock: 5 })
+    const water = createProduct(client.db, {
+      barcode: '222',
+      name: 'Water',
+      priceCents: 1000,
+      stock: 5
+    })
     expect(() =>
       completeSale(client.db, [
-        { productId: water.id, productName: water.name, unitPriceCents: water.priceCents, quantity: 1.5 }
+        {
+          productId: water.id,
+          productName: water.name,
+          unitPriceCents: water.priceCents,
+          quantity: 1.5
+        }
       ])
     ).toThrow(SaleValidationError)
   })
 
   it('rejects a line with a negative unit price', () => {
-    const water = createProduct(client.db, { barcode: '222', name: 'Water', priceCents: 1000, stock: 5 })
+    const water = createProduct(client.db, {
+      barcode: '222',
+      name: 'Water',
+      priceCents: 1000,
+      stock: 5
+    })
     expect(() =>
       completeSale(client.db, [
         { productId: water.id, productName: water.name, unitPriceCents: -100, quantity: 1 }
@@ -192,5 +281,56 @@ describe('completeSale', () => {
         { productId: 'does-not-exist', productName: 'Ghost', unitPriceCents: 100, quantity: 1 }
       ])
     ).toThrow(ProductNotFoundError)
+  })
+
+  it('builds the insufficient-stock error from the authoritative DB product name, not the stale cart-supplied name', () => {
+    const water = createProduct(client.db, {
+      barcode: '222',
+      name: 'Water',
+      priceCents: 1000,
+      stock: 1
+    })
+    const line: SaleLineInput = {
+      productId: water.id,
+      productName: 'Stale Cart Name',
+      unitPriceCents: water.priceCents,
+      quantity: 2
+    }
+
+    expect.assertions(2)
+    try {
+      completeSale(client.db, [line])
+    } catch (err) {
+      expect((err as Error).message).toContain('Water')
+      expect((err as Error).message).not.toContain('Stale Cart Name')
+    }
+  })
+
+  it('rejects a sale line for a product that was deactivated after being added to the cart, and rolls back the entire sale', () => {
+    const water = createProduct(client.db, {
+      barcode: '222',
+      name: 'Water',
+      priceCents: 1000,
+      stock: 5
+    })
+    updateProduct(client.db, water.id, { isActive: false })
+
+    expect(() =>
+      completeSale(client.db, [
+        {
+          productId: water.id,
+          productName: water.name,
+          unitPriceCents: water.priceCents,
+          quantity: 1
+        }
+      ])
+    ).toThrow(ProductNotAvailableError)
+
+    expect(client.db.select().from(sales).all()).toHaveLength(0)
+    expect(client.db.select().from(saleItems).all()).toHaveLength(0)
+    expect(client.db.select().from(stockTransactions).all()).toHaveLength(0)
+
+    const waterAfter = client.db.select().from(products).where(eq(products.id, water.id)).get()
+    expect(waterAfter?.stock).toBe(5)
   })
 })

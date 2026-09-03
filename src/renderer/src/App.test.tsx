@@ -30,7 +30,9 @@ describe('App', () => {
 
     await user.click(screen.getByRole('button', { name: 'Products' }))
 
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Add Product' })).toBeInTheDocument())
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Add Product' })).toBeInTheDocument()
+    )
   })
 
   it('switches back to the POS screen', async () => {
@@ -38,7 +40,9 @@ describe('App', () => {
     render(<App />)
 
     await user.click(screen.getByRole('button', { name: 'Products' }))
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Add Product' })).toBeInTheDocument())
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Add Product' })).toBeInTheDocument()
+    )
 
     await user.click(screen.getByRole('button', { name: 'POS' }))
 

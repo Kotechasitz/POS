@@ -167,6 +167,38 @@ describe('PosPage', () => {
     expect(screen.getByText('Coke')).toBeInTheDocument()
   })
 
+  it('clears a stale sale-rejection banner once a new item is scanned', async () => {
+    const user = userEvent.setup()
+    ;(window.api.sales.complete as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error(
+        'Error invoking remote method \'sales:complete\': InsufficientStockError: Not enough stock for "Coke": 1 available, 2 requested'
+      )
+    )
+
+    render(<PosPage />)
+
+    await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
+    await waitFor(() => expect(screen.getByText('Coke')).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: 'Finish Sale' }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Not enough stock for "Coke": 1 available, 2 requested'
+      )
+    )
+
+    // Scan a new, valid item — the stale sale-rejection banner must not linger
+    // over this fresh cart state.
+    await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
+
+    await waitFor(() =>
+      expect(
+        screen.queryByText('Not enough stock for "Coke": 1 available, 2 requested')
+      ).not.toBeInTheDocument()
+    )
+  })
+
   it('hides a previous success message once a new item is scanned into a fresh sale', async () => {
     const user = userEvent.setup()
     const sale: SaleRecord = {

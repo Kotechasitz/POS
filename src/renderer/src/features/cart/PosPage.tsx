@@ -12,7 +12,12 @@ function PosPage(): React.JSX.Element {
   const removeItem = useCartStore((state) => state.removeItem)
   const clear = useCartStore((state) => state.clear)
   const { inputRef, value, setValue, error, handleKeyDown, clearError } = useBarcodeScan()
-  const { completing, error: saleError, completeSale } = useCompleteSale()
+  const {
+    completing,
+    error: saleError,
+    completeSale,
+    clearError: clearSaleError
+  } = useCompleteSale()
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   useEffect(() => {
@@ -36,15 +41,23 @@ function PosPage(): React.JSX.Element {
   }, [])
 
   function handleBarcodeKeyDown(event: React.KeyboardEvent<HTMLInputElement>): void {
-    if (event.key === 'Enter') {
+    if (event.key === 'Enter' && value.trim().length > 0) {
       if (successMessage) {
         setSuccessMessage(null)
       }
       if (error) {
         clearError()
       }
+      if (saleError) {
+        clearSaleError()
+      }
     }
     handleKeyDown(event)
+  }
+
+  function handleClearCart(): void {
+    clear()
+    clearSaleError()
   }
 
   async function handleFinishSale(): Promise<void> {
@@ -101,7 +114,7 @@ function PosPage(): React.JSX.Element {
         <button
           type="button"
           className="btn btn-secondary"
-          onClick={clear}
+          onClick={handleClearCart}
           disabled={items.length === 0 || completing}
         >
           Clear Cart

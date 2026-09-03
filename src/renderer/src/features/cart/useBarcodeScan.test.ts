@@ -19,7 +19,10 @@ function pressEnter(
   handleKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void
 ): Promise<void> {
   return act(async () => {
-    handleKeyDown({ key: 'Enter', preventDefault: () => {} } as React.KeyboardEvent<HTMLInputElement>)
+    handleKeyDown({
+      key: 'Enter',
+      preventDefault: () => {}
+    } as React.KeyboardEvent<HTMLInputElement>)
   })
 }
 

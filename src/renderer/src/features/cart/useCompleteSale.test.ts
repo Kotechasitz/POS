@@ -4,7 +4,14 @@ import { useCompleteSale } from './useCompleteSale'
 import { useCartStore } from './cartStore'
 import type { SaleRecord } from '../../../../shared/sale'
 
-const coke = { productId: '1', barcode: '111', name: 'Coke', unitPriceCents: 2000, stock: 5, quantity: 2 }
+const coke = {
+  productId: '1',
+  barcode: '111',
+  name: 'Coke',
+  unitPriceCents: 2000,
+  stock: 5,
+  quantity: 2
+}
 
 describe('useCompleteSale', () => {
   beforeEach(() => {
@@ -114,5 +121,28 @@ describe('useCompleteSale', () => {
     })
 
     expect(result.current.completing).toBe(false)
+  })
+
+  it('clears the error via clearError', async () => {
+    useCartStore.setState({ items: [coke] })
+    ;(window.api.sales.complete as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error(
+        'Error invoking remote method \'sales:complete\': InsufficientStockError: Not enough stock for "Coke": 1 available, 2 requested'
+      )
+    )
+
+    const { result } = renderHook(() => useCompleteSale())
+
+    await act(async () => {
+      await result.current.completeSale()
+    })
+
+    await waitFor(() => expect(result.current.error).not.toBeNull())
+
+    act(() => {
+      result.current.clearError()
+    })
+
+    expect(result.current.error).toBeNull()
   })
 })
