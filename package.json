@@ -21,6 +21,7 @@
     "build:mac": "electron-vite build && electron-builder --mac",
     "build:linux": "electron-vite build && electron-builder --linux",
     "pretest": "set npm_config_allow_scripts=&& npm rebuild better-sqlite3",
+    "smoke:package": "set ELECTRON_RUN_AS_NODE=1&& dist\\win-unpacked\\POS.exe scripts\\smoke-test-package.cjs dist/win-unpacked",
     "test": "vitest run",
     "test:watch": "vitest",
     "seed": "tsx scripts/seed.ts",
