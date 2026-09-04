@@ -4,7 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { count } from 'drizzle-orm'
 import icon from '../../resources/icon.png?asset'
 import { createDbClient, type DbClient } from './database/client'
-import { getDbPath } from './database/db-path'
+import { getDbPath, getMigrationsPath } from './database/db-path'
 import { products } from './database/schema'
 import { registerProductHandlers } from './ipc/register-product-handlers'
 import { registerSaleHandlers } from './ipc/register-sale-handlers'
@@ -67,7 +67,7 @@ app.whenReady().then(async () => {
   })
 
   try {
-    dbClient = createDbClient(getDbPath(), join(__dirname, '../../drizzle'))
+    dbClient = createDbClient(getDbPath(), getMigrationsPath())
   } catch (err) {
     dialog.showErrorBox(
       'Database Error',
