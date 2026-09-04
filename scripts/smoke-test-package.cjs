@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- CommonJS script, run directly via ELECTRON_RUN_AS_NODE with no build step */
+
 // scripts/smoke-test-package.cjs
 //
 // Verifies a packaged Windows build's native SQLite binding and bundled
@@ -40,7 +42,6 @@ if (!fs.existsSync(migrationsPath)) {
   process.exit(1)
 }
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const Database = require(nativeModulePath)
 const sqlite = new Database(':memory:')
 sqlite.pragma('journal_mode = WAL')
