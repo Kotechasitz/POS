@@ -9,11 +9,16 @@ files:
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - '!drizzle'
+  - '!{docs,scripts,.superpowers,.sf}'
+  - '!dev.db*'
+  - '!{drizzle.config.ts,vitest.config.ts}'
 asarUnpack:
   - resources/**
 extraResources:
   - from: drizzle
     to: drizzle
+publish: null
 win:
   executableName: POS
 nsis:

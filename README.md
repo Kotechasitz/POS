@@ -1,6 +1,6 @@
 # POS
 
-An Electron application with React and TypeScript
+Windows desktop POS for a single-store retail shop — barcode scanning, cart, sales, and a dashboard.
 
 ## Recommended IDE Setup
 

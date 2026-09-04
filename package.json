@@ -4,7 +4,6 @@
   "description": "Windows desktop POS for a single-store retail shop — barcode scanning, cart, sales, and a dashboard.",
   "main": "./out/main/index.js",
   "author": "kotechasitz",
-  "homepage": "https://electron-vite.org",
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint --cache .",

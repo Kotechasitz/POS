@@ -35,6 +35,7 @@ time you run `pos-1.0.0-setup.exe` — this is expected, not a bug. Click
   - [ ] A desktop shortcut named "POS" was created.
   - [ ] The app appears in Windows Settings → Apps as "POS".
 - [ ] Launch the app from the desktop shortcut. Confirm it opens to the POS tab with an empty cart, and the barcode field is focused automatically.
+- [ ] Pin the running app to the taskbar (right-click the taskbar icon → "Pin to taskbar"). Close the app, then relaunch it from the pinned icon. Confirm it binds to the same pinned icon rather than creating a second, separate one (this would indicate the app's internal identity doesn't match what the installer registered — see `src/main/index.ts`'s `setAppUserModelId` call).
 - [ ] Close the app, then check that `%APPDATA%\pos\pos.db` exists. Note the
       folder is lowercase `pos`, not `POS` — Electron's `userData` directory
       name comes from `package.json`'s `name` field (the same lowercase
