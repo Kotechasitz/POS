@@ -1,9 +1,9 @@
 {
-  "name": "myproject",
+  "name": "pos",
   "version": "1.0.0",
-  "description": "An Electron application with React and TypeScript",
+  "description": "Windows desktop POS for a single-store retail shop — barcode scanning, cart, sales, and a dashboard.",
   "main": "./out/main/index.js",
-  "author": "example.com",
+  "author": "kotechasitz",
   "homepage": "https://electron-vite.org",
   "scripts": {
     "format": "prettier --write .",

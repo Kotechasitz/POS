@@ -1,5 +1,5 @@
-appId: com.electron.app
-productName: myproject
+appId: com.kotechasitz.pos
+productName: POS
 directories:
   buildResources: build
 files:
@@ -15,7 +15,7 @@ extraResources:
   - from: drizzle
     to: drizzle
 win:
-  executableName: myproject
+  executableName: POS
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
@@ -41,6 +41,3 @@ linux:
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
-publish:
-  provider: generic
-  url: https://example.com/auto-updates
