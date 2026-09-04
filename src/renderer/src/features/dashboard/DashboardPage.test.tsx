@@ -47,8 +47,8 @@ describe('DashboardPage', () => {
 
   it('renders the top products list', async () => {
     render(<DashboardPage />)
-    await waitFor(() => expect(screen.getByText('Coke')).toBeInTheDocument())
-    expect(screen.getByText('5 sold')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText('1. Coke')).toBeInTheDocument())
+    expect(screen.getByText('5 sold · ฿100.00')).toBeInTheDocument()
   })
 
   it('renders the low stock list', async () => {

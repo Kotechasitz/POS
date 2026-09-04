@@ -25,7 +25,6 @@ function BarChart({ data }: BarChartProps): React.JSX.Element {
   return (
     <svg
       viewBox={`0 0 ${WIDTH} ${HEIGHT + 24}`}
-      role="img"
       aria-label="Sales for the last 7 days"
       className="bar-chart"
     >

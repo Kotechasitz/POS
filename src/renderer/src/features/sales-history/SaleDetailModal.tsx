@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import type { SaleRecord } from '../../../../shared/sale'
 import { Money } from '../../../../shared/money'
+import { formatDateTime } from '../../lib/formatDate'
 
 export interface SaleDetailModalProps {
   sale: SaleRecord
@@ -33,7 +34,7 @@ function SaleDetailModal({ sale, onClose }: SaleDetailModalProps): React.JSX.Ele
         aria-labelledby="sale-detail-title"
       >
         <h2 id="sale-detail-title">Sale Detail</h2>
-        <p className="sale-detail-meta">{new Date(sale.createdAt).toLocaleString()}</p>
+        <p className="sale-detail-meta">{formatDateTime(sale.createdAt)}</p>
 
         <table className="products-table">
           <thead>

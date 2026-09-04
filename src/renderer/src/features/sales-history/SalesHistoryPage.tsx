@@ -4,10 +4,7 @@ import SaleDetailModal from './SaleDetailModal'
 import { Money } from '../../../../shared/money'
 import type { SaleRecord } from '../../../../shared/sale'
 import { toUserMessage } from '../../lib/ipcError'
-
-function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString()
-}
+import { formatDateTime } from '../../lib/formatDate'
 
 function SalesHistoryPage(): React.JSX.Element {
   const { sales, loading, error } = useSalesHistory()

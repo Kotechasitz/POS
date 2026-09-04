@@ -15,7 +15,7 @@ export function registerDashboardHandlers(db: BetterSQLite3Database): void {
   })
 
   ipcMain.handle('dashboard:topProducts', (_event, limit?: number): TopProduct[] => {
-    return limit === undefined ? getTopProducts(db) : getTopProducts(db, limit)
+    return getTopProducts(db, limit)
   })
 
   ipcMain.handle('dashboard:sevenDaySales', (): DailySales[] => {
@@ -23,6 +23,6 @@ export function registerDashboardHandlers(db: BetterSQLite3Database): void {
   })
 
   ipcMain.handle('dashboard:lowStock', (_event, threshold?: number): ProductRecord[] => {
-    return threshold === undefined ? getLowStockProducts(db) : getLowStockProducts(db, threshold)
+    return getLowStockProducts(db, threshold)
   })
 }

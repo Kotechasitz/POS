@@ -65,6 +65,16 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByText('No sales yet')).toBeInTheDocument())
   })
 
+  it('re-fetches dashboard data each time the tab is re-entered', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: 'Dashboard' }))
+    await waitFor(() => expect(window.api.dashboard.summary).toHaveBeenCalledTimes(1))
+    await user.click(screen.getByRole('button', { name: 'POS' }))
+    await user.click(screen.getByRole('button', { name: 'Dashboard' }))
+    await waitFor(() => expect(window.api.dashboard.summary).toHaveBeenCalledTimes(2))
+  })
+
   it('switches back to the POS screen', async () => {
     const user = userEvent.setup()
     render(<App />)

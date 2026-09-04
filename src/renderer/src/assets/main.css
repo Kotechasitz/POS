@@ -624,6 +624,7 @@
   flex-direction: column;
   gap: var(--space-2);
   font-size: 14px;
+  padding-inline-start: 0;
 }
 
 .top-products-list li,

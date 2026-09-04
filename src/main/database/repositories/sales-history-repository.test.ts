@@ -26,7 +26,12 @@ describe('listSales', () => {
   })
 
   it('assigns sequential bill numbers in creation order and lists newest first', () => {
-    const coke = createProduct(client.db, { barcode: '111', name: 'Coke', priceCents: 2000, stock: 50 })
+    const coke = createProduct(client.db, {
+      barcode: '111',
+      name: 'Coke',
+      priceCents: 2000,
+      stock: 50
+    })
     const first = completeSale(client.db, [
       { productId: coke.id, productName: coke.name, unitPriceCents: coke.priceCents, quantity: 1 }
     ])
@@ -42,12 +47,27 @@ describe('listSales', () => {
   })
 
   it('reports the correct item count per sale', () => {
-    const coke = createProduct(client.db, { barcode: '111', name: 'Coke', priceCents: 2000, stock: 50 })
-    const water = createProduct(client.db, { barcode: '222', name: 'Water', priceCents: 1000, stock: 50 })
+    const coke = createProduct(client.db, {
+      barcode: '111',
+      name: 'Coke',
+      priceCents: 2000,
+      stock: 50
+    })
+    const water = createProduct(client.db, {
+      barcode: '222',
+      name: 'Water',
+      priceCents: 1000,
+      stock: 50
+    })
 
     const twoLineSale = completeSale(client.db, [
       { productId: coke.id, productName: coke.name, unitPriceCents: coke.priceCents, quantity: 1 },
-      { productId: water.id, productName: water.name, unitPriceCents: water.priceCents, quantity: 1 }
+      {
+        productId: water.id,
+        productName: water.name,
+        unitPriceCents: water.priceCents,
+        quantity: 1
+      }
     ])
     const oneLineSale = completeSale(client.db, [
       { productId: coke.id, productName: coke.name, unitPriceCents: coke.priceCents, quantity: 1 }
@@ -66,7 +86,10 @@ describe('getSaleWithItems', () => {
   let client: DbClient
 
   beforeEach(() => {
-    dbFile = path.join(os.tmpdir(), `pos-sales-history-repo-detail-${Date.now()}-${Math.random()}.db`)
+    dbFile = path.join(
+      os.tmpdir(),
+      `pos-sales-history-repo-detail-${Date.now()}-${Math.random()}.db`
+    )
     client = createDbClient(dbFile, path.resolve(__dirname, '../../../../drizzle'))
   })
 
@@ -76,7 +99,12 @@ describe('getSaleWithItems', () => {
   })
 
   it('returns the full sale record with its line items', () => {
-    const coke = createProduct(client.db, { barcode: '111', name: 'Coke', priceCents: 2000, stock: 50 })
+    const coke = createProduct(client.db, {
+      barcode: '111',
+      name: 'Coke',
+      priceCents: 2000,
+      stock: 50
+    })
     const sale = completeSale(client.db, [
       { productId: coke.id, productName: coke.name, unitPriceCents: coke.priceCents, quantity: 3 }
     ])

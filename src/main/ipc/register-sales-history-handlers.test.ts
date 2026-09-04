@@ -40,7 +40,12 @@ describe('registerSalesHistoryHandlers', () => {
   })
 
   it('salesHistory:list returns completed sales', () => {
-    const coke = createProduct(client.db, { barcode: '111', name: 'Coke', priceCents: 2000, stock: 50 })
+    const coke = createProduct(client.db, {
+      barcode: '111',
+      name: 'Coke',
+      priceCents: 2000,
+      stock: 50
+    })
     completeSale(client.db, [
       { productId: coke.id, productName: coke.name, unitPriceCents: coke.priceCents, quantity: 1 }
     ])
@@ -51,7 +56,12 @@ describe('registerSalesHistoryHandlers', () => {
   })
 
   it('salesHistory:detail returns the sale, or null when there is no match', () => {
-    const coke = createProduct(client.db, { barcode: '111', name: 'Coke', priceCents: 2000, stock: 50 })
+    const coke = createProduct(client.db, {
+      barcode: '111',
+      name: 'Coke',
+      priceCents: 2000,
+      stock: 50
+    })
     const sale = completeSale(client.db, [
       { productId: coke.id, productName: coke.name, unitPriceCents: coke.priceCents, quantity: 1 }
     ])

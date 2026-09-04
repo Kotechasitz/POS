@@ -28,9 +28,32 @@ export function useSalesHistory(): UseSalesHistoryResult {
   }, [])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    reload()
-  }, [reload])
+    let ignore = false
+
+    async function load(): Promise<void> {
+      setLoading(true)
+      try {
+        const result = await window.api.salesHistory.list()
+        if (!ignore) {
+          setSales(result)
+          setError(null)
+        }
+      } catch (err) {
+        if (!ignore) {
+          setError(toUserMessage(err))
+        }
+      } finally {
+        if (!ignore) {
+          setLoading(false)
+        }
+      }
+    }
+
+    load()
+    return () => {
+      ignore = true
+    }
+  }, [])
 
   return { sales, loading, error, reload }
 }

@@ -19,6 +19,9 @@ function DashboardPage(): React.JSX.Element {
   if (error) {
     return (
       <div className="products-page">
+        <div className="products-header">
+          <h1>Dashboard</h1>
+        </div>
         <p role="alert" className="alert alert-danger alert-inline">
           {error}
         </p>
@@ -61,10 +64,15 @@ function DashboardPage(): React.JSX.Element {
             <p className="empty-hint">No sales yet</p>
           ) : (
             <ol className="top-products-list">
-              {topProducts.map((product) => (
+              {topProducts.map((product, index) => (
                 <li key={product.productId}>
-                  <span>{product.productName}</span>
-                  <span>{product.totalQuantity} sold</span>
+                  <span>
+                    {index + 1}. {product.productName}
+                  </span>
+                  <span>
+                    {product.totalQuantity} sold ·{' '}
+                    {Money.fromCents(product.totalRevenueCents).format()}
+                  </span>
                 </li>
               ))}
             </ol>
