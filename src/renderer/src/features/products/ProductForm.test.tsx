@@ -13,14 +13,13 @@ describe('ProductForm', () => {
       dbHealth: vi.fn(),
       products: { list: vi.fn(), create: vi.fn(), update: vi.fn(), getByBarcode: vi.fn() },
       sales: { complete: vi.fn() },
-      dashboard: { summary: vi.fn(), topProducts: vi.fn(), sevenDaySales: vi.fn(), lowStock: vi.fn() },
-      salesHistory: { list: vi.fn(), detail: vi.fn() },
-      categories: {
-        list: vi.fn().mockResolvedValue([beverages]),
-        create: vi.fn(),
-        update: vi.fn(),
-        delete: vi.fn()
+      dashboard: {
+        summary: vi.fn(),
+        topProducts: vi.fn(),
+        sevenDaySales: vi.fn(),
+        lowStock: vi.fn()
       },
+      salesHistory: { list: vi.fn(), detail: vi.fn() },
       images: { pickProductImage: vi.fn() }
     } as unknown as Window['api']
   })
@@ -28,7 +27,15 @@ describe('ProductForm', () => {
   it('submits a valid new product with price converted to integer cents', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
-    render(<ProductForm submitting={false} error={null} onSubmit={onSubmit} onCancel={vi.fn()} />)
+    render(
+      <ProductForm
+        submitting={false}
+        error={null}
+        categories={[]}
+        onSubmit={onSubmit}
+        onCancel={vi.fn()}
+      />
+    )
 
     await user.type(screen.getByLabelText('Barcode'), '8850001000012')
     await user.type(screen.getByLabelText('Name'), 'Coca Cola')
@@ -47,7 +54,15 @@ describe('ProductForm', () => {
   it('rejects submission with an empty name', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
-    render(<ProductForm submitting={false} error={null} onSubmit={onSubmit} onCancel={vi.fn()} />)
+    render(
+      <ProductForm
+        submitting={false}
+        error={null}
+        categories={[]}
+        onSubmit={onSubmit}
+        onCancel={vi.fn()}
+      />
+    )
 
     await user.type(screen.getByLabelText('Barcode'), '123')
     await user.type(screen.getByLabelText('Price (Baht)'), '5')
@@ -61,7 +76,15 @@ describe('ProductForm', () => {
   it('rejects submission with an empty price', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
-    render(<ProductForm submitting={false} error={null} onSubmit={onSubmit} onCancel={vi.fn()} />)
+    render(
+      <ProductForm
+        submitting={false}
+        error={null}
+        categories={[]}
+        onSubmit={onSubmit}
+        onCancel={vi.fn()}
+      />
+    )
 
     await user.type(screen.getByLabelText('Barcode'), '123')
     await user.type(screen.getByLabelText('Name'), 'A')
@@ -75,7 +98,15 @@ describe('ProductForm', () => {
   it('rejects a negative price', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
-    render(<ProductForm submitting={false} error={null} onSubmit={onSubmit} onCancel={vi.fn()} />)
+    render(
+      <ProductForm
+        submitting={false}
+        error={null}
+        categories={[]}
+        onSubmit={onSubmit}
+        onCancel={vi.fn()}
+      />
+    )
 
     await user.type(screen.getByLabelText('Barcode'), '123')
     await user.type(screen.getByLabelText('Name'), 'A')
@@ -108,6 +139,7 @@ describe('ProductForm', () => {
         initialValues={existing}
         submitting={false}
         error={null}
+        categories={[]}
         onSubmit={onSubmit}
         onCancel={vi.fn()}
       />
@@ -134,6 +166,7 @@ describe('ProductForm', () => {
       <ProductForm
         submitting={false}
         error='A product with barcode "999" already exists'
+        categories={[]}
         onSubmit={vi.fn()}
         onCancel={vi.fn()}
       />
@@ -145,7 +178,15 @@ describe('ProductForm', () => {
   it('calls onCancel when the Escape key is pressed', async () => {
     const user = userEvent.setup()
     const onCancel = vi.fn()
-    render(<ProductForm submitting={false} error={null} onSubmit={vi.fn()} onCancel={onCancel} />)
+    render(
+      <ProductForm
+        submitting={false}
+        error={null}
+        categories={[]}
+        onSubmit={vi.fn()}
+        onCancel={onCancel}
+      />
+    )
 
     await user.keyboard('{Escape}')
 
@@ -155,7 +196,15 @@ describe('ProductForm', () => {
   it('does not call onCancel on Escape while a submission is in flight', async () => {
     const user = userEvent.setup()
     const onCancel = vi.fn()
-    render(<ProductForm submitting={true} error={null} onSubmit={vi.fn()} onCancel={onCancel} />)
+    render(
+      <ProductForm
+        submitting={true}
+        error={null}
+        categories={[]}
+        onSubmit={vi.fn()}
+        onCancel={onCancel}
+      />
+    )
 
     await user.keyboard('{Escape}')
 
@@ -165,7 +214,15 @@ describe('ProductForm', () => {
   it('calls onCancel when the backdrop (outside the dialog panel) is clicked', async () => {
     const user = userEvent.setup()
     const onCancel = vi.fn()
-    render(<ProductForm submitting={false} error={null} onSubmit={vi.fn()} onCancel={onCancel} />)
+    render(
+      <ProductForm
+        submitting={false}
+        error={null}
+        categories={[]}
+        onSubmit={vi.fn()}
+        onCancel={onCancel}
+      />
+    )
 
     await user.click(screen.getByRole('dialog').parentElement as HTMLElement)
 
@@ -175,7 +232,15 @@ describe('ProductForm', () => {
   it('does not call onCancel when clicking inside the dialog panel', async () => {
     const user = userEvent.setup()
     const onCancel = vi.fn()
-    render(<ProductForm submitting={false} error={null} onSubmit={vi.fn()} onCancel={onCancel} />)
+    render(
+      <ProductForm
+        submitting={false}
+        error={null}
+        categories={[]}
+        onSubmit={vi.fn()}
+        onCancel={onCancel}
+      />
+    )
 
     await user.click(screen.getByRole('dialog'))
 
@@ -183,22 +248,50 @@ describe('ProductForm', () => {
   })
 
   it('renders as an accessible dialog labelled by its heading', () => {
-    render(<ProductForm submitting={false} error={null} onSubmit={vi.fn()} onCancel={vi.fn()} />)
+    render(
+      <ProductForm
+        submitting={false}
+        error={null}
+        categories={[]}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    )
 
     const dialog = screen.getByRole('dialog', { name: 'Add Product' })
     expect(dialog).toBeInTheDocument()
   })
 
   it('shows a category dropdown populated from the categories list', async () => {
-    render(<ProductForm submitting={false} error={null} onSubmit={vi.fn()} onCancel={vi.fn()} />)
-    await waitFor(() => expect(screen.getByRole('option', { name: 'Beverages' })).toBeInTheDocument())
+    render(
+      <ProductForm
+        submitting={false}
+        error={null}
+        categories={[beverages]}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    )
+    await waitFor(() =>
+      expect(screen.getByRole('option', { name: 'Beverages' })).toBeInTheDocument()
+    )
   })
 
   it('includes the selected categoryId when submitting a new product', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
-    render(<ProductForm submitting={false} error={null} onSubmit={onSubmit} onCancel={vi.fn()} />)
-    await waitFor(() => expect(screen.getByRole('option', { name: 'Beverages' })).toBeInTheDocument())
+    render(
+      <ProductForm
+        submitting={false}
+        error={null}
+        categories={[beverages]}
+        onSubmit={onSubmit}
+        onCancel={vi.fn()}
+      />
+    )
+    await waitFor(() =>
+      expect(screen.getByRole('option', { name: 'Beverages' })).toBeInTheDocument()
+    )
 
     await user.type(screen.getByLabelText('Barcode'), '111')
     await user.type(screen.getByLabelText('Name'), 'Coke')
@@ -207,16 +300,24 @@ describe('ProductForm', () => {
     await user.selectOptions(screen.getByLabelText('Category'), 'Beverages')
     await user.click(screen.getByRole('button', { name: 'Add' }))
 
-    expect(onSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({ categoryId: '1' })
-    )
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ categoryId: '1' }))
   })
 
   it('submits categoryId: undefined when no category is selected (the placeholder option)', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
-    render(<ProductForm submitting={false} error={null} onSubmit={onSubmit} onCancel={vi.fn()} />)
-    await waitFor(() => expect(screen.getByRole('option', { name: 'Beverages' })).toBeInTheDocument())
+    render(
+      <ProductForm
+        submitting={false}
+        error={null}
+        categories={[beverages]}
+        onSubmit={onSubmit}
+        onCancel={vi.fn()}
+      />
+    )
+    await waitFor(() =>
+      expect(screen.getByRole('option', { name: 'Beverages' })).toBeInTheDocument()
+    )
 
     await user.type(screen.getByLabelText('Barcode'), '111')
     await user.type(screen.getByLabelText('Name'), 'Coke')
@@ -224,9 +325,7 @@ describe('ProductForm', () => {
     await user.type(screen.getByLabelText('Stock'), '5')
     await user.click(screen.getByRole('button', { name: 'Add' }))
 
-    expect(onSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({ categoryId: undefined })
-    )
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ categoryId: undefined }))
   })
 
   it('picks an image and shows a preview', async () => {
@@ -235,8 +334,18 @@ describe('ProductForm', () => {
       path: 'C:\\fake\\picked-image.png',
       previewDataUrl: 'data:image/png;base64,ZmFrZQ=='
     })
-    render(<ProductForm submitting={false} error={null} onSubmit={vi.fn()} onCancel={vi.fn()} />)
-    await waitFor(() => expect(screen.getByRole('option', { name: 'Beverages' })).toBeInTheDocument())
+    render(
+      <ProductForm
+        submitting={false}
+        error={null}
+        categories={[beverages]}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    )
+    await waitFor(() =>
+      expect(screen.getByRole('option', { name: 'Beverages' })).toBeInTheDocument()
+    )
 
     await user.click(screen.getByRole('button', { name: 'Choose Image' }))
 
@@ -255,8 +364,18 @@ describe('ProductForm', () => {
       path: 'C:\\fake\\picked-image.png',
       previewDataUrl: 'data:image/png;base64,ZmFrZQ=='
     })
-    render(<ProductForm submitting={false} error={null} onSubmit={onSubmit} onCancel={vi.fn()} />)
-    await waitFor(() => expect(screen.getByRole('option', { name: 'Beverages' })).toBeInTheDocument())
+    render(
+      <ProductForm
+        submitting={false}
+        error={null}
+        categories={[beverages]}
+        onSubmit={onSubmit}
+        onCancel={vi.fn()}
+      />
+    )
+    await waitFor(() =>
+      expect(screen.getByRole('option', { name: 'Beverages' })).toBeInTheDocument()
+    )
     await user.click(screen.getByRole('button', { name: 'Choose Image' }))
     await waitFor(() => expect(screen.getByAltText('Product preview')).toBeInTheDocument())
 
@@ -274,8 +393,18 @@ describe('ProductForm', () => {
   it('does nothing when the image picker is cancelled', async () => {
     const user = userEvent.setup()
     ;(window.api.images.pickProductImage as ReturnType<typeof vi.fn>).mockResolvedValue(null)
-    render(<ProductForm submitting={false} error={null} onSubmit={vi.fn()} onCancel={vi.fn()} />)
-    await waitFor(() => expect(screen.getByRole('option', { name: 'Beverages' })).toBeInTheDocument())
+    render(
+      <ProductForm
+        submitting={false}
+        error={null}
+        categories={[beverages]}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    )
+    await waitFor(() =>
+      expect(screen.getByRole('option', { name: 'Beverages' })).toBeInTheDocument()
+    )
 
     await user.click(screen.getByRole('button', { name: 'Choose Image' }))
 
@@ -302,6 +431,7 @@ describe('ProductForm', () => {
         initialValues={withImage}
         submitting={false}
         error={null}
+        categories={[]}
         onSubmit={onSubmit}
         onCancel={vi.fn()}
       />

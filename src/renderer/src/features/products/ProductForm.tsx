@@ -4,13 +4,14 @@ import type {
   ProductRecord,
   UpdateProductInput
 } from '../../../../shared/product'
+import type { CategoryRecord } from '../../../../shared/category'
 import { Money } from '../../../../shared/money'
-import { useCategories } from '../categories/useCategories'
 
 export interface ProductFormProps {
   initialValues?: ProductRecord
   submitting: boolean
   error: string | null
+  categories: CategoryRecord[]
   onSubmit: (input: CreateProductInput | UpdateProductInput) => void
   onCancel: () => void
 }
@@ -19,6 +20,7 @@ function ProductForm({
   initialValues,
   submitting,
   error,
+  categories,
   onSubmit,
   onCancel
 }: ProductFormProps): React.JSX.Element {
@@ -30,7 +32,6 @@ function ProductForm({
   const [stock, setStock] = useState(initialValues ? initialValues.stock.toString() : '')
   const [isActive, setIsActive] = useState(initialValues?.isActive ?? true)
   const [formError, setFormError] = useState<string | null>(null)
-  const { categories } = useCategories()
   const [categoryId, setCategoryId] = useState(initialValues?.categoryId ?? '')
   const [imageSourcePath, setImageSourcePath] = useState<string | null>(null)
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(
@@ -206,11 +207,7 @@ function ProductForm({
             <label>Product Image</label>
             <div className="image-picker">
               {imagePreviewUrl && (
-                <img
-                  src={imagePreviewUrl}
-                  alt="Product preview"
-                  className="image-picker-preview"
-                />
+                <img src={imagePreviewUrl} alt="Product preview" className="image-picker-preview" />
               )}
               <button
                 type="button"

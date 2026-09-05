@@ -105,4 +105,16 @@ describe('ProductList', () => {
     render(<ProductList products={[noImage]} onEdit={vi.fn()} categories={[beverages]} />)
     expect(screen.queryByAltText('Coke')).not.toBeInTheDocument()
   })
+
+  it('shows a category-specific empty state when the category filter matches nothing', () => {
+    render(
+      <ProductList products={[]} onEdit={vi.fn()} categories={[]} categoryFilterActive={true} />
+    )
+    expect(screen.getByText('No products in this category')).toBeInTheDocument()
+  })
+
+  it('prefers the generic empty state when categoryFilterActive is not set', () => {
+    render(<ProductList products={[]} onEdit={vi.fn()} categories={[]} />)
+    expect(screen.getByText('No products yet')).toBeInTheDocument()
+  })
 })

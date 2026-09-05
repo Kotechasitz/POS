@@ -26,7 +26,14 @@ function SearchIcon(): React.JSX.Element {
 
 function ProductsPage(): React.JSX.Element {
   const { products, loading, error, query, setQuery, createProduct, updateProduct } = useProducts()
-  const { categories } = useCategories()
+  const {
+    categories,
+    loading: categoriesLoading,
+    error: categoriesError,
+    createCategory,
+    updateCategory,
+    deleteCategory
+  } = useCategories()
   const [categoryFilter, setCategoryFilter] = useState('')
   const [showCategoryManager, setShowCategoryManager] = useState(false)
   const [editingProduct, setEditingProduct] = useState<ProductRecord | null>(null)
@@ -37,6 +44,7 @@ function ProductsPage(): React.JSX.Element {
   const filteredProducts = categoryFilter
     ? products.filter((product) => product.categoryId === categoryFilter)
     : products
+  const categoryFilterActive = categoryFilter !== '' && products.length > 0
 
   function handleAddClick(): void {
     setEditingProduct(null)
@@ -128,6 +136,7 @@ function ProductsPage(): React.JSX.Element {
             onEdit={handleEdit}
             categories={categories}
             query={query}
+            categoryFilterActive={categoryFilterActive}
           />
         )}
       </div>
@@ -138,12 +147,23 @@ function ProductsPage(): React.JSX.Element {
           initialValues={editingProduct ?? undefined}
           submitting={submitting}
           error={formError}
+          categories={categories}
           onSubmit={handleSubmit}
           onCancel={handleCancel}
         />
       )}
 
-      {showCategoryManager && <CategoryManager onClose={() => setShowCategoryManager(false)} />}
+      {showCategoryManager && (
+        <CategoryManager
+          categories={categories}
+          loading={categoriesLoading}
+          error={categoriesError}
+          onCreate={createCategory}
+          onUpdate={updateCategory}
+          onDelete={deleteCategory}
+          onClose={() => setShowCategoryManager(false)}
+        />
+      )}
     </div>
   )
 }

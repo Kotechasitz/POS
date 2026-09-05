@@ -7,6 +7,7 @@ export interface ProductListProps {
   onEdit: (product: ProductRecord) => void
   categories: CategoryRecord[]
   query?: string
+  categoryFilterActive?: boolean
 }
 
 function EmptyIcon(): React.JSX.Element {
@@ -23,10 +24,23 @@ function EmptyIcon(): React.JSX.Element {
   )
 }
 
-function ProductList({ products, onEdit, categories, query }: ProductListProps): React.JSX.Element {
-  const categoryNameById = new Map(categories.map((category) => [category.id, category.name]))
-
+function ProductList({
+  products,
+  onEdit,
+  categories,
+  query,
+  categoryFilterActive
+}: ProductListProps): React.JSX.Element {
   if (products.length === 0) {
+    if (categoryFilterActive) {
+      return (
+        <div className="empty-state">
+          <EmptyIcon />
+          <h2>No products in this category</h2>
+          <p>Try a different category, or edit a product to assign it here.</p>
+        </div>
+      )
+    }
     return (
       <div className="empty-state">
         <EmptyIcon />
@@ -39,6 +53,8 @@ function ProductList({ products, onEdit, categories, query }: ProductListProps):
       </div>
     )
   }
+
+  const categoryNameById = new Map(categories.map((category) => [category.id, category.name]))
 
   return (
     <table className="products-table">

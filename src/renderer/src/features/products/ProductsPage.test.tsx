@@ -223,4 +223,57 @@ describe('ProductsPage', () => {
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
+
+  it('reflects a newly created category in the filter dropdown immediately after adding it via Category Manager', async () => {
+    const user = userEvent.setup()
+    const snacks: CategoryRecord = { id: '2', name: 'Snacks', createdAt: '', updatedAt: '' }
+    ;(window.api.categories.create as ReturnType<typeof vi.fn>).mockResolvedValue(snacks)
+    ;(window.api.categories.list as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce([beverages])
+      .mockResolvedValue([beverages, snacks])
+
+    render(<ProductsPage />)
+    await waitFor(() => expect(screen.getByText('Water')).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: 'Manage Categories' }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+
+    await user.type(screen.getByLabelText('New category name'), 'Snacks')
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+    await waitFor(() => expect(window.api.categories.create).toHaveBeenCalledWith('Snacks'))
+
+    await user.click(screen.getByRole('button', { name: 'Close' }))
+
+    await waitFor(() => expect(screen.getByRole('option', { name: 'Snacks' })).toBeInTheDocument())
+  })
+
+  it('filters the product list by category', async () => {
+    const user = userEvent.setup()
+    const productWithCategory: ProductRecord = { ...secondExisting, categoryId: '1' }
+    ;(window.api.products.list as ReturnType<typeof vi.fn>).mockResolvedValue([
+      existing,
+      productWithCategory
+    ])
+
+    render(<ProductsPage />)
+    await waitFor(() => expect(screen.getByText('Water')).toBeInTheDocument())
+    expect(screen.getByText('Chips')).toBeInTheDocument()
+
+    await user.selectOptions(screen.getByLabelText('Filter by category'), 'Beverages')
+
+    expect(screen.queryByText('Water')).not.toBeInTheDocument()
+    expect(screen.getByText('Chips')).toBeInTheDocument()
+  })
+
+  it('shows a category-specific empty state when the selected category has no products', async () => {
+    const user = userEvent.setup()
+    render(<ProductsPage />)
+    await waitFor(() => expect(screen.getByText('Water')).toBeInTheDocument())
+
+    await user.selectOptions(screen.getByLabelText('Filter by category'), 'Beverages')
+
+    await waitFor(() =>
+      expect(screen.getByText('No products in this category')).toBeInTheDocument()
+    )
+  })
 })

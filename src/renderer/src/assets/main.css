@@ -64,6 +64,14 @@
   color: var(--color-ink-faint);
 }
 
+.products-toolbar select {
+  padding: 9px var(--space-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  font-size: 14px;
+  background: var(--color-surface);
+}
+
 /* ---- Buttons ---- */
 
 .btn {
@@ -380,7 +388,8 @@
   color: var(--color-ink-muted);
 }
 
-.field input {
+.field input,
+.field select {
   padding: 9px var(--space-3);
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
@@ -388,13 +397,15 @@
   background: var(--color-surface);
 }
 
-.field input:focus-visible {
+.field input:focus-visible,
+.field select:focus-visible {
   outline: none;
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px var(--color-primary-soft);
 }
 
-.field input:disabled {
+.field input:disabled,
+.field select:disabled {
   background: var(--color-surface-sunken);
   color: var(--color-ink-faint);
 }
