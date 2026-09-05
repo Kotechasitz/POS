@@ -183,6 +183,13 @@ git commit -m "feat: add payment method and discount columns; Money.subtract"
 **Files:**
 - Modify: `src/main/database/repositories/sale-repository.ts`
 - Test: `src/main/database/repositories/sale-repository.test.ts`
+- Modify: `src/main/database/repositories/sales-history-repository.ts` — `getSaleWithItems` also builds a `SaleRecord` literal and needs the two new fields.
+- Modify (mechanical call-site fix only, no logic changes): every file that calls `completeSale(client.db, [...])` purely to seed data for an unrelated feature's tests — `completeSale`'s new required third parameter breaks all of them the moment this task lands:
+  - `src/main/database/repositories/sales-history-repository.test.ts` (5 call sites, plus its own `getSaleWithItems` assertions gain the two new fields)
+  - `src/main/database/repositories/dashboard-repository.test.ts` (9 call sites)
+  - `src/main/ipc/register-sales-history-handlers.test.ts` (2 call sites)
+  - `src/main/ipc/register-dashboard-handlers.test.ts` (3 call sites)
+- Modify (fixture fields only, no logic changes): `src/renderer/src/features/sales-history/SaleDetailModal.test.tsx`, `src/renderer/src/features/sales-history/SalesHistoryPage.test.tsx` — each declares a `SaleRecord`-typed fixture the extended interface now makes incomplete.
 
 **Interfaces:**
 - Consumes: `PaymentMethod` from `../../../shared/sale` (Task 1); `Money.prototype.subtract` (Task 1).
@@ -599,15 +606,62 @@ export function completeSale(
 Run: `npx vitest run src/main/database/repositories/sale-repository.test.ts`
 Expected: PASS (all tests, old and new).
 
-- [ ] **Step 5: Run the full suite and typecheck**
+- [ ] **Step 5: Fix every other call site `completeSale`'s new signature breaks**
+
+`getSaleWithItems` in `src/main/database/repositories/sales-history-repository.ts` also builds a `SaleRecord` literal. Change:
+
+```typescript
+  return {
+    id: sale.id,
+    totalCents: sale.totalCents,
+    status: sale.status,
+    createdAt: sale.createdAt,
+    items
+  }
+```
+
+to:
+
+```typescript
+  return {
+    id: sale.id,
+    totalCents: sale.totalCents,
+    status: sale.status,
+    paymentMethod: sale.paymentMethod as PaymentMethod,
+    discountCents: sale.discountCents,
+    createdAt: sale.createdAt,
+    items
+  }
+```
+
+Add `PaymentMethod` to that file's existing import: change `import type { SaleRecord } from '../../../shared/sale'` to `import type { SaleRecord, PaymentMethod } from '../../../shared/sale'`. (`sale.paymentMethod` comes back from Drizzle typed as a plain `string` — this codebase has no `SaleRow`/`SaleRecord` compile-time drift guard for the `sales` table the way it does for `products`, so a type assertion here is the same kind of trusted narrowing `sale.status` already implicitly relies on.)
+
+Then, in each of these four test files, every `completeSale(client.db, [...])` call is seeding data for a feature unrelated to payment method — add `'CASH'` as a third argument to every one of them, changing `completeSale(client.db, [<items>])` to `completeSale(client.db, [<items>], 'CASH')` (including calls whose `[<items>]` array spans multiple lines — add `, 'CASH'` after the array's closing `]`, before the call's closing `)`):
+- `src/main/database/repositories/sales-history-repository.test.ts` (5 call sites)
+- `src/main/database/repositories/dashboard-repository.test.ts` (9 call sites)
+- `src/main/ipc/register-sales-history-handlers.test.ts` (2 call sites)
+- `src/main/ipc/register-dashboard-handlers.test.ts` (3 call sites)
+
+In `src/main/database/repositories/sales-history-repository.test.ts`'s `'returns the full sale record with its line items'` test (inside `describe('getSaleWithItems', ...)`), add two assertions right after the existing `expect(detail?.status).toBe('COMPLETED')` line:
+
+```typescript
+    expect(detail?.paymentMethod).toBe('CASH')
+    expect(detail?.discountCents).toBe(0)
+```
+
+Two renderer test files also declare a `const ...: SaleRecord = {...}` fixture that the extended interface now makes incomplete — add `paymentMethod: 'CASH',` and `discountCents: 0,` (right after each fixture's existing `status: 'COMPLETED',` line):
+- `src/renderer/src/features/sales-history/SaleDetailModal.test.tsx` (the `sale` fixture)
+- `src/renderer/src/features/sales-history/SalesHistoryPage.test.tsx` (the `detail` fixture)
+
+- [ ] **Step 6: Run the full suite and typecheck**
 
 Run: `npm test && npm run typecheck`
-Expected: FAIL at typecheck — `register-sale-handlers.ts` still calls `completeSale(db, items)` with only two arguments. This is expected; Task 3 resolves it.
+Expected: FAIL at typecheck — `register-sale-handlers.ts` still calls `completeSale(db, items)` with only two arguments. This is expected; Task 3 resolves it. Every other typecheck/test failure must now be gone — if `npm test` fails anywhere other than that one known `register-sale-handlers.ts` typecheck error, stop and investigate before proceeding.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add src/main/database/repositories/sale-repository.ts src/main/database/repositories/sale-repository.test.ts
+git add src/main/database/repositories/sale-repository.ts src/main/database/repositories/sale-repository.test.ts src/main/database/repositories/sales-history-repository.ts src/main/database/repositories/sales-history-repository.test.ts src/main/database/repositories/dashboard-repository.test.ts src/main/ipc/register-sales-history-handlers.test.ts src/main/ipc/register-dashboard-handlers.test.ts src/renderer/src/features/sales-history/SaleDetailModal.test.tsx src/renderer/src/features/sales-history/SalesHistoryPage.test.tsx
 git commit -m "feat: thread payment method and discount through completeSale"
 ```
 
@@ -1094,7 +1148,7 @@ Run: `npx vitest run src/renderer/src/features/cart/useCompleteSale.test.ts` —
 
 - [ ] **Step 6: Wire the modal into `PosPage`**
 
-Write the failing test first — in `src/renderer/src/features/cart/PosPage.test.tsx`, insert `sales: { complete: vi.fn() }` stays the same in the `beforeEach` mock, but every test that clicks `'Finish Sale'` and expects the sale to complete immediately must be updated to also pick a payment method afterward. Replace the four affected tests:
+Write the failing test first — in `src/renderer/src/features/cart/PosPage.test.tsx`, `sales: { complete: vi.fn() }` stays the same in the `beforeEach` mock, but every test that clicks `'Finish Sale'` and expects the sale to complete immediately must be updated to also pick a payment method afterward. Note: Task 2 already added `paymentMethod: 'CASH',`/`discountCents: 0,` to this file's two `SaleRecord` fixtures (a typecheck-driven fixture fix, unrelated to this task) — the "Replace" blocks below already reflect that current file content. Replace the four affected tests:
 
 Replace:
 
@@ -1105,6 +1159,8 @@ Replace:
       id: 'sale-1',
       totalCents: 4000,
       status: 'COMPLETED',
+      paymentMethod: 'CASH',
+      discountCents: 0,
       createdAt: '2026-09-03T00:00:00.000Z',
       items: [
         {
@@ -1336,6 +1392,8 @@ And finally replace:
       id: 'sale-1',
       totalCents: 2000,
       status: 'COMPLETED',
+      paymentMethod: 'CASH',
+      discountCents: 0,
       createdAt: '2026-09-03T00:00:00.000Z',
       items: []
     }
