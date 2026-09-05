@@ -262,6 +262,35 @@ describe('product repository', () => {
     if (product.imagePath) deleteProductImage(product.imagePath)
   })
 
+  it('does not leave an orphaned image file when create fails validation (e.g. duplicate barcode)', () => {
+    createProduct(client.db, { barcode: '999', name: 'Existing', priceCents: 100, stock: 1 })
+
+    const sourceFile = path.join(os.tmpdir(), `pos-product-image-create-fail-${Date.now()}.png`)
+    fs.writeFileSync(sourceFile, 'image-bytes')
+
+    const imagesDir = getProductImagesPath()
+    const before = fs.existsSync(imagesDir) ? fs.readdirSync(imagesDir) : []
+
+    expect(() =>
+      createProduct(client.db, {
+        barcode: '999',
+        name: 'Duplicate',
+        priceCents: 200,
+        stock: 2,
+        imageSourcePath: sourceFile
+      })
+    ).toThrow(DuplicateBarcodeError)
+
+    fs.rmSync(sourceFile)
+
+    // The insert never committed, so the image this call stored on the way
+    // in must not be left behind — nothing in the database ever referenced
+    // it. Comparing directory contents (rather than a specific filename)
+    // works regardless of storeProductImage's random UUID naming.
+    const after = fs.existsSync(imagesDir) ? fs.readdirSync(imagesDir) : []
+    expect(after).toEqual(before)
+  })
+
   it('updates a product to add a category', () => {
     const category = createCategory(client.db, 'Snacks')
     const created = createProduct(client.db, {

@@ -300,4 +300,30 @@ describe('ProductsPage', () => {
     await waitFor(() => expect(filterSelect).toHaveValue(''))
     expect(screen.getByText('Water')).toBeInTheDocument()
   })
+
+  it('does not render the product table until categories have loaded too, even if products resolve first', async () => {
+    const categorized: ProductRecord = { ...existing, categoryId: '1' }
+    ;(window.api.products.list as ReturnType<typeof vi.fn>).mockResolvedValue([categorized])
+    let resolveCategories: (categories: CategoryRecord[]) => void = () => {}
+    ;(window.api.categories.list as ReturnType<typeof vi.fn>).mockReturnValue(
+      new Promise((resolve) => {
+        resolveCategories = resolve
+      })
+    )
+
+    render(<ProductsPage />)
+
+    // Products have resolved, but categories haven't yet — the table must
+    // not be showing (which would render this product's category cell
+    // blank instead of "Beverages").
+    await waitFor(() => expect(window.api.products.list).toHaveBeenCalled())
+    expect(screen.queryByText('Water')).not.toBeInTheDocument()
+
+    resolveCategories([beverages])
+
+    await waitFor(() => expect(screen.getByText('Water')).toBeInTheDocument())
+    // "Beverages" also appears as a filter-dropdown <option> — target the
+    // table cell specifically so this doesn't collide with it.
+    expect(screen.getByRole('cell', { name: 'Beverages' })).toBeInTheDocument()
+  })
 })

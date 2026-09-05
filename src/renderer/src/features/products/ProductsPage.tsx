@@ -57,6 +57,14 @@ function ProductsPage(): React.JSX.Element {
     : products
   const categoryFilterActive = effectiveCategoryFilter !== '' && products.length > 0
 
+  // "Ready" rather than "not loading": categoriesLoading also flips true on
+  // every reload triggered by a Category Manager mutation (add/rename/
+  // delete), not just the initial fetch. Gating the table on that flag
+  // unconditionally would hide the whole product list during every such
+  // mutation, not just the first load. Once categories has data, a
+  // background reload no longer counts as "not ready."
+  const categoriesReady = !categoriesLoading || categories.length > 0
+
   function handleAddClick(): void {
     setEditingProduct(null)
     setFormError(null)
@@ -141,7 +149,11 @@ function ProductsPage(): React.JSX.Element {
             {error}
           </p>
         )}
-        {!loading && !error && (
+        {/* Wait on both loads before rendering rows: mounting as soon as
+            products arrive (without waiting on categories) would render
+            every categorized product's category cell blank — not the
+            intentional "—" for "no category" — until categories catch up. */}
+        {!loading && categoriesReady && !error && (
           <ProductList
             products={filteredProducts}
             onEdit={handleEdit}

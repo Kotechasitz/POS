@@ -112,14 +112,22 @@ function CategoryManager({
       >
         <h2 id="category-manager-title">Manage Categories</h2>
 
-        {loading && <div className="loading-row">Loading categories…</div>}
+        {/* `loading` also flips true on every reload triggered by add/rename/
+            delete (see useCategories.ts), not just the initial fetch. Once
+            there's a list to show, keep showing it through a background
+            reload instead of unmounting it — otherwise every successful
+            action flashes the whole list (including an in-progress rename
+            input) to a loading message right as it completes. */}
+        {loading && categories.length === 0 && (
+          <div className="loading-row">Loading categories…</div>
+        )}
         {(actionError || error) && (
           <p role="alert" className="alert alert-danger">
             {actionError ?? error}
           </p>
         )}
 
-        {!loading && (
+        {categories.length > 0 && (
           <ul className="category-manager-list">
             {categories.map((category) =>
               editingId === category.id ? (

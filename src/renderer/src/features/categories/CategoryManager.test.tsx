@@ -215,7 +215,7 @@ describe('CategoryManager', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
-  it('shows a loading row instead of the category list while loading', () => {
+  it('shows a loading row instead of the category list while loading with nothing to show yet', () => {
     render(
       <CategoryManager
         categories={[]}
@@ -228,5 +228,25 @@ describe('CategoryManager', () => {
       />
     )
     expect(screen.getByText('Loading categories…')).toBeInTheDocument()
+  })
+
+  it('keeps showing the category list during a background reload instead of unmounting it', () => {
+    // loading=true here simulates the reload a create/rename/delete triggers
+    // internally (useCategories.ts) — the list must stay mounted through
+    // that, not flash to a loading message, since categories already has
+    // data to show.
+    render(
+      <CategoryManager
+        categories={[beverages]}
+        loading={true}
+        error={null}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+        onClose={vi.fn()}
+      />
+    )
+    expect(screen.getByText('Beverages')).toBeInTheDocument()
+    expect(screen.queryByText('Loading categories…')).not.toBeInTheDocument()
   })
 })
