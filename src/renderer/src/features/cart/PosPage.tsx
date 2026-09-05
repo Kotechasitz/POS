@@ -86,12 +86,11 @@ function PosPage(): React.JSX.Element {
 
   function handleFinishSaleClick(): void {
     if (discountBaht.trim().length > 0) {
-      const discount = Money.parseBaht(discountBaht)
-      if (!discount) {
+      if (!parsedDiscount) {
         setDiscountError('Discount must be a non-negative number')
         return
       }
-      if (discount.cents > subtotalCents) {
+      if (parsedDiscount.cents > subtotalCents) {
         setDiscountError('Discount cannot exceed the subtotal')
         return
       }
@@ -105,7 +104,7 @@ function PosPage(): React.JSX.Element {
   }
 
   async function handleSelectPaymentMethod(method: PaymentMethod): Promise<void> {
-    const discountCents = discountBaht.trim().length > 0 ? (Money.parseBaht(discountBaht)?.cents ?? 0) : 0
+    const discountCents = discountBaht.trim().length > 0 ? (parsedDiscount?.cents ?? 0) : 0
     const sale = await completeSale(method, discountCents)
     setShowPaymentModal(false)
     if (sale) {
@@ -160,12 +159,15 @@ function PosPage(): React.JSX.Element {
   }
 
   const subtotalCents = cartTotalCents(items)
-  const parsedDiscount = discountBaht.trim().length > 0 ? Money.parseBaht(discountBaht) : Money.fromCents(0)
+  const parsedDiscount =
+    discountBaht.trim().length > 0 ? Money.parseBaht(discountBaht) : Money.fromCents(0)
   // Clamp for display only — the actual reject-if-too-large validation runs
   // on Finish Sale click, below. This just keeps the live Total display
   // from ever showing a negative number while the cashier is still typing.
   const displayDiscountCents = parsedDiscount ? Math.min(parsedDiscount.cents, subtotalCents) : 0
-  const totalCents = subtotalCents - displayDiscountCents
+  const totalCents = Money.fromCents(subtotalCents).subtract(
+    Money.fromCents(displayDiscountCents)
+  ).cents
 
   return (
     <div className="products-page">
@@ -184,7 +186,10 @@ function PosPage(): React.JSX.Element {
               step="0.01"
               min="0"
               value={discountBaht}
-              onChange={(e) => setDiscountBaht(e.target.value)}
+              onChange={(e) => {
+                setDiscountBaht(e.target.value)
+                setDiscountError(null)
+              }}
               disabled={showPaymentModal}
             />
           </div>

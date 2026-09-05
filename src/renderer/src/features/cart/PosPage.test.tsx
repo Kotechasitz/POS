@@ -409,6 +409,36 @@ describe('PosPage', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
+  it('allows a discount exactly equal to the subtotal, opening the payment method modal', async () => {
+    const user = userEvent.setup()
+    render(<PosPage />)
+
+    await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
+    await waitFor(() => expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument())
+    await user.type(screen.getByLabelText('Discount (Baht)'), '20')
+
+    expect(screen.getByLabelText('Cart total')).toHaveTextContent('฿0.00')
+
+    await user.click(screen.getByRole('button', { name: 'Finish Sale' }))
+
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('rejects a discount one satang over the subtotal', async () => {
+    const user = userEvent.setup()
+    render(<PosPage />)
+
+    await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
+    await waitFor(() => expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument())
+    await user.type(screen.getByLabelText('Discount (Baht)'), '20.01')
+
+    await user.click(screen.getByRole('button', { name: 'Finish Sale' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Discount cannot exceed the subtotal')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
   it('sends the entered discount to completeSale when a payment method is picked', async () => {
     const user = userEvent.setup()
     const sale: SaleRecord = {
