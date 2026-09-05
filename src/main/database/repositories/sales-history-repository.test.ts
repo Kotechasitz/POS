@@ -7,6 +7,8 @@ const isMock = vi.hoisted(() => ({ dev: true }))
 vi.mock('@electron-toolkit/utils', () => ({ is: isMock }))
 vi.mock('electron', () => ({ app: { getPath: vi.fn() } }))
 
+import { eq } from 'drizzle-orm'
+import { sales, saleVoids } from '../schema'
 import { createDbClient, type DbClient } from '../client'
 import { createProduct } from './product-repository'
 import { completeSale } from './sale-repository'
@@ -84,6 +86,22 @@ describe('listSales', () => {
     expect(twoLine?.itemCount).toBe(2)
     expect(oneLine?.itemCount).toBe(1)
   })
+
+  it("includes each sale's status and payment method", () => {
+    const coke = createProduct(client.db, {
+      barcode: '111',
+      name: 'Coke',
+      priceCents: 2000,
+      stock: 50
+    })
+    completeSale(client.db, [
+      { productId: coke.id, productName: coke.name, unitPriceCents: coke.priceCents, quantity: 1 }
+    ], 'QR')
+
+    const [row] = listSales(client.db)
+    expect(row.status).toBe('COMPLETED')
+    expect(row.paymentMethod).toBe('QR')
+  })
 })
 
 describe('getSaleWithItems', () => {
@@ -125,5 +143,43 @@ describe('getSaleWithItems', () => {
 
   it('returns undefined for a sale id that does not exist', () => {
     expect(getSaleWithItems(client.db, 'does-not-exist')).toBeUndefined()
+  })
+
+  it('omits voidReason/voidedAt for a sale that was never voided', () => {
+    const coke = createProduct(client.db, {
+      barcode: '111',
+      name: 'Coke',
+      priceCents: 2000,
+      stock: 50
+    })
+    const sale = completeSale(client.db, [
+      { productId: coke.id, productName: coke.name, unitPriceCents: coke.priceCents, quantity: 1 }
+    ], 'CASH')
+
+    const detail = getSaleWithItems(client.db, sale.id)
+    expect(detail?.voidReason).toBeUndefined()
+    expect(detail?.voidedAt).toBeUndefined()
+  })
+
+  it('includes voidReason/voidedAt once a sale_voids row exists for it', () => {
+    const coke = createProduct(client.db, {
+      barcode: '111',
+      name: 'Coke',
+      priceCents: 2000,
+      stock: 50
+    })
+    const sale = completeSale(client.db, [
+      { productId: coke.id, productName: coke.name, unitPriceCents: coke.priceCents, quantity: 1 }
+    ], 'CASH')
+    client.db
+      .insert(saleVoids)
+      .values({ id: 'void-1', saleId: sale.id, reason: 'Customer changed their mind', voidedAt: '2026-09-06T10:00:00.000Z' })
+      .run()
+    client.db.update(sales).set({ status: 'VOID' }).where(eq(sales.id, sale.id)).run()
+
+    const detail = getSaleWithItems(client.db, sale.id)
+    expect(detail?.status).toBe('VOID')
+    expect(detail?.voidReason).toBe('Customer changed their mind')
+    expect(detail?.voidedAt).toBe('2026-09-06T10:00:00.000Z')
   })
 })

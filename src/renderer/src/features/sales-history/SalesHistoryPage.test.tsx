@@ -11,7 +11,9 @@ const list: SaleListItem[] = [
     billNumber: 1,
     totalCents: 4000,
     createdAt: '2026-09-03T10:00:00.000Z',
-    itemCount: 2
+    itemCount: 2,
+    status: 'COMPLETED',
+    paymentMethod: 'CASH'
   }
 ]
 

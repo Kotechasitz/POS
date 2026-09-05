@@ -27,4 +27,6 @@ export interface SaleRecord {
   discountCents: number
   createdAt: string
   items: SaleItemRecord[]
+  voidReason?: string
+  voidedAt?: string
 }

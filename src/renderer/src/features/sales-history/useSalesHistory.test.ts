@@ -4,7 +4,15 @@ import { useSalesHistory } from './useSalesHistory'
 import type { SaleListItem } from '../../../../shared/salesHistory'
 
 const list: SaleListItem[] = [
-  { id: '1', billNumber: 1, totalCents: 4000, createdAt: '2026-09-03T10:00:00.000Z', itemCount: 2 }
+  {
+    id: '1',
+    billNumber: 1,
+    totalCents: 4000,
+    createdAt: '2026-09-03T10:00:00.000Z',
+    itemCount: 2,
+    status: 'COMPLETED',
+    paymentMethod: 'CASH'
+  }
 ]
 
 describe('useSalesHistory', () => {
@@ -56,7 +64,9 @@ describe('useSalesHistory', () => {
         billNumber: 2,
         totalCents: 1000,
         createdAt: '2026-09-03T11:00:00.000Z',
-        itemCount: 1
+        itemCount: 1,
+        status: 'COMPLETED',
+        paymentMethod: 'CASH'
       }
     ]
     ;(window.api.salesHistory.list as ReturnType<typeof vi.fn>).mockResolvedValue(updated)

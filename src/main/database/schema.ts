@@ -82,3 +82,12 @@ export const stockTransactions = sqliteTable('stock_transactions', {
   referenceId: text('reference_id'),
   createdAt: text('created_at').notNull()
 })
+
+export const saleVoids = sqliteTable('sale_voids', {
+  id: text('id').primaryKey(),
+  saleId: text('sale_id')
+    .notNull()
+    .references(() => sales.id),
+  reason: text('reason').notNull(),
+  voidedAt: text('voided_at').notNull()
+})
