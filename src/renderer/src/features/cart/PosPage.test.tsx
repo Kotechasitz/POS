@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import PosPage from './PosPage'
 import { useCartStore } from './cartStore'
+import { useHeldCartsStore } from './heldCartsStore'
 import type { ProductRecord } from '../../../../shared/product'
 import type { SaleRecord } from '../../../../shared/sale'
 
@@ -22,6 +23,7 @@ const coke: ProductRecord = {
 describe('PosPage', () => {
   beforeEach(() => {
     useCartStore.setState({ items: [] })
+    useHeldCartsStore.setState({ heldCarts: [] })
     window.api = {
       dbHealth: vi.fn(),
       products: {
@@ -294,5 +296,102 @@ describe('PosPage', () => {
     await user.click(screen.getByRole('button', { name: /Coke/ }))
 
     await waitFor(() => expect(screen.getByLabelText('Cart total')).toHaveTextContent('฿20.00'))
+  })
+
+  it('holds the current cart and clears it, via the Hold Cart modal', async () => {
+    const user = userEvent.setup()
+    render(<PosPage />)
+
+    await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
+    await waitFor(() => expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: 'Hold' }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+    await user.type(screen.getByLabelText('Label (optional)'), 'Table 4')
+    await user.click(screen.getByRole('button', { name: 'Hold' }))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByText('Cart is empty')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Held Carts (1)' })).toBeInTheDocument()
+  })
+
+  it('resumes a held cart into the (empty) active cart', async () => {
+    const user = userEvent.setup()
+    render(<PosPage />)
+
+    await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
+    await waitFor(() => expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: 'Hold' }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: 'Hold' }))
+    await waitFor(() => expect(screen.getByText('Cart is empty')).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: 'Held Carts (1)' }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: 'Resume' }))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Held Carts (0)' })).toBeInTheDocument()
+  })
+
+  it('rejects resuming a held cart while the active cart is not empty', async () => {
+    const user = userEvent.setup()
+    render(<PosPage />)
+
+    // Hold one cart with Coke in it.
+    await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
+    await waitFor(() => expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: 'Hold' }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: 'Hold' }))
+    await waitFor(() => expect(screen.getByText('Cart is empty')).toBeInTheDocument())
+
+    // Start a new active cart.
+    await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
+    await waitFor(() => expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: 'Held Carts (1)' }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: 'Resume' }))
+
+    expect(
+      screen.getByText('Finish, clear, or hold your current cart before resuming a held one.')
+    ).toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Held Carts (1)' })).toBeInTheDocument()
+  })
+
+  it('discards a held cart', async () => {
+    const user = userEvent.setup()
+    render(<PosPage />)
+
+    await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
+    await waitFor(() => expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: 'Hold' }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: 'Hold' }))
+    await waitFor(() => expect(screen.getByText('Cart is empty')).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: 'Held Carts (1)' }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: 'Discard' }))
+
+    expect(screen.getByText('No held carts.')).toBeInTheDocument()
+  })
+
+  it('closes the Hold Cart modal without holding when Cancel is clicked', async () => {
+    const user = userEvent.setup()
+    render(<PosPage />)
+
+    await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
+    await waitFor(() => expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: 'Hold' }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument()
   })
 })

@@ -28,6 +28,7 @@ interface CartState {
   setQuantity: (productId: string, quantity: number) => void
   removeItem: (productId: string) => void
   clear: () => void
+  restoreItems: (items: CartItem[]) => void
   syncStock: (productId: string, stock: number) => void
 }
 
@@ -118,6 +119,8 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   clear: () => set({ items: [] }),
+
+  restoreItems: (items) => set({ items }),
 
   syncStock: (productId, stock) => {
     set({

@@ -86,6 +86,21 @@ describe('useCartStore', () => {
     expect(useCartStore.getState().items).toHaveLength(0)
   })
 
+  it('restoreItems replaces the entire cart with the given items', () => {
+    useCartStore.setState({
+      items: [
+        { productId: '1', barcode: '111', name: 'Coke', unitPriceCents: 2000, stock: 5, quantity: 1 }
+      ]
+    })
+
+    const restored = [
+      { productId: '2', barcode: '222', name: 'Water', unitPriceCents: 1000, stock: 3, quantity: 2 }
+    ]
+    useCartStore.getState().restoreItems(restored)
+
+    expect(useCartStore.getState().items).toEqual(restored)
+  })
+
   it('computes line and cart totals using integer-cents money math', () => {
     useCartStore.getState().addScannedProduct(coke)
     useCartStore.getState().incrementItem('1')
