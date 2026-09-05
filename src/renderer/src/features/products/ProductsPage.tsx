@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useProducts } from './useProducts'
 import ProductList from './ProductList'
 import ProductForm from './ProductForm'
+import { useCategories } from '../categories/useCategories'
+import CategoryManager from '../categories/CategoryManager'
 import type {
   CreateProductInput,
   ProductRecord,
@@ -24,10 +26,17 @@ function SearchIcon(): React.JSX.Element {
 
 function ProductsPage(): React.JSX.Element {
   const { products, loading, error, query, setQuery, createProduct, updateProduct } = useProducts()
+  const { categories } = useCategories()
+  const [categoryFilter, setCategoryFilter] = useState('')
+  const [showCategoryManager, setShowCategoryManager] = useState(false)
   const [editingProduct, setEditingProduct] = useState<ProductRecord | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+
+  const filteredProducts = categoryFilter
+    ? products.filter((product) => product.categoryId === categoryFilter)
+    : products
 
   function handleAddClick(): void {
     setEditingProduct(null)
@@ -79,6 +88,25 @@ function ProductsPage(): React.JSX.Element {
           <button type="button" className="btn btn-primary" onClick={handleAddClick}>
             Add Product
           </button>
+          <select
+            aria-label="Filter by category"
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+          >
+            <option value="">All Categories</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setShowCategoryManager(true)}
+          >
+            Manage Categories
+          </button>
         </div>
       </div>
 
@@ -95,7 +123,12 @@ function ProductsPage(): React.JSX.Element {
           </p>
         )}
         {!loading && !error && (
-          <ProductList products={products} onEdit={handleEdit} query={query} />
+          <ProductList
+            products={filteredProducts}
+            onEdit={handleEdit}
+            categories={categories}
+            query={query}
+          />
         )}
       </div>
 
@@ -109,6 +142,8 @@ function ProductsPage(): React.JSX.Element {
           onCancel={handleCancel}
         />
       )}
+
+      {showCategoryManager && <CategoryManager onClose={() => setShowCategoryManager(false)} />}
     </div>
   )
 }

@@ -3,6 +3,9 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import ProductsPage from './ProductsPage'
 import type { ProductRecord } from '../../../../shared/product'
+import type { CategoryRecord } from '../../../../shared/category'
+
+const beverages: CategoryRecord = { id: '1', name: 'Beverages', createdAt: '', updatedAt: '' }
 
 const existing: ProductRecord = {
   id: '1',
@@ -38,7 +41,14 @@ describe('ProductsPage', () => {
         list: vi.fn().mockResolvedValue([existing]),
         create: vi.fn(),
         update: vi.fn()
-      }
+      },
+      categories: {
+        list: vi.fn().mockResolvedValue([beverages]),
+        create: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn()
+      },
+      images: { pickProductImage: vi.fn() }
     } as unknown as Window['api']
   })
 
@@ -181,5 +191,36 @@ describe('ProductsPage', () => {
     await user.type(screen.getByLabelText('Search products'), 'wat')
 
     await waitFor(() => expect(window.api.products.list).toHaveBeenLastCalledWith('wat'))
+  })
+
+  it('shows a category filter dropdown populated from the categories list', async () => {
+    render(<ProductsPage />)
+    await waitFor(() =>
+      expect(screen.getByRole('option', { name: 'Beverages' })).toBeInTheDocument()
+    )
+  })
+
+  it('opens the Category Manager modal', async () => {
+    const user = userEvent.setup()
+    render(<ProductsPage />)
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Manage Categories' })).toBeInTheDocument()
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Manage Categories' }))
+
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+    expect(screen.getByRole('heading', { name: 'Manage Categories' })).toBeInTheDocument()
+  })
+
+  it('closes the Category Manager modal', async () => {
+    const user = userEvent.setup()
+    render(<ProductsPage />)
+    await user.click(screen.getByRole('button', { name: 'Manage Categories' }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: 'Close' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 })

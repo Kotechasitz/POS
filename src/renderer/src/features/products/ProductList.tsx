@@ -1,9 +1,11 @@
 import type { ProductRecord } from '../../../../shared/product'
+import type { CategoryRecord } from '../../../../shared/category'
 import { Money } from '../../../../shared/money'
 
 export interface ProductListProps {
   products: ProductRecord[]
   onEdit: (product: ProductRecord) => void
+  categories: CategoryRecord[]
   query?: string
 }
 
@@ -21,7 +23,9 @@ function EmptyIcon(): React.JSX.Element {
   )
 }
 
-function ProductList({ products, onEdit, query }: ProductListProps): React.JSX.Element {
+function ProductList({ products, onEdit, categories, query }: ProductListProps): React.JSX.Element {
+  const categoryNameById = new Map(categories.map((category) => [category.id, category.name]))
+
   if (products.length === 0) {
     return (
       <div className="empty-state">
@@ -41,6 +45,8 @@ function ProductList({ products, onEdit, query }: ProductListProps): React.JSX.E
       <thead>
         <tr>
           <th>Barcode</th>
+          <th>Image</th>
+          <th>Category</th>
           <th>Name</th>
           <th className="col-price">Price</th>
           <th className="col-stock">Stock</th>
@@ -52,6 +58,18 @@ function ProductList({ products, onEdit, query }: ProductListProps): React.JSX.E
         {products.map((product) => (
           <tr key={product.id} className={product.isActive ? undefined : 'is-inactive'}>
             <td className="cell-barcode">{product.barcode}</td>
+            <td>
+              {product.imagePath ? (
+                <img
+                  src={`app-image://${product.imagePath}`}
+                  alt={product.name}
+                  className="cell-thumbnail"
+                />
+              ) : (
+                <span className="cell-thumbnail-placeholder" aria-hidden="true" />
+              )}
+            </td>
+            <td>{product.categoryId ? categoryNameById.get(product.categoryId) : '—'}</td>
             <td>{product.name}</td>
             <td className="cell-price">{Money.fromCents(product.priceCents).format()}</td>
             <td className="cell-stock">{product.stock}</td>
