@@ -1,16 +1,23 @@
-import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, protocol, net } from 'electron'
 import { join } from 'path'
+import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { count } from 'drizzle-orm'
 import icon from '../../resources/icon.png?asset'
 import { createDbClient, type DbClient } from './database/client'
-import { getDbPath, getMigrationsPath } from './database/db-path'
+import { getDbPath, getMigrationsPath, getProductImagesPath } from './database/db-path'
 import { products } from './database/schema'
 import { registerProductHandlers } from './ipc/register-product-handlers'
 import { registerCategoryHandlers } from './ipc/register-category-handlers'
 import { registerSaleHandlers } from './ipc/register-sale-handlers'
 import { registerDashboardHandlers } from './ipc/register-dashboard-handlers'
 import { registerSalesHistoryHandlers } from './ipc/register-sales-history-handlers'
+import { registerImageHandlers } from './ipc/register-image-handlers'
+
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'app-image', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }
+])
 
 let dbClient: DbClient
 
@@ -60,6 +67,16 @@ app.whenReady().then(async () => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.kotechasitz.pos')
 
+  protocol.handle('app-image', (request) => {
+    // path.basename strips any directory-traversal attempt from the
+    // requested filename before it's joined onto the real storage path —
+    // defense in depth, even though this app has no untrusted remote
+    // content that could ever craft a malicious app-image:// URL.
+    const filename = path.basename(decodeURIComponent(new URL(request.url).hostname))
+    const filePath = join(getProductImagesPath(), filename)
+    return net.fetch(pathToFileURL(filePath).toString())
+  })
+
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
   // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
@@ -88,6 +105,7 @@ app.whenReady().then(async () => {
   registerSaleHandlers(dbClient.db)
   registerDashboardHandlers(dbClient.db)
   registerSalesHistoryHandlers(dbClient.db)
+  registerImageHandlers()
 
   createWindow()
 

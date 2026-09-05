@@ -41,6 +41,10 @@ const api = {
     list: (): Promise<SaleListItem[]> => ipcRenderer.invoke('salesHistory:list'),
     detail: (saleId: string): Promise<SaleRecord | null> =>
       ipcRenderer.invoke('salesHistory:detail', saleId)
+  },
+  images: {
+    pickProductImage: (): Promise<{ path: string; previewDataUrl: string } | null> =>
+      ipcRenderer.invoke('images:pickProductImage')
   }
 }
 

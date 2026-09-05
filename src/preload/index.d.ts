@@ -35,6 +35,9 @@ declare global {
         list: () => Promise<SaleListItem[]>
         detail: (saleId: string) => Promise<SaleRecord | null>
       }
+      images: {
+        pickProductImage: () => Promise<{ path: string; previewDataUrl: string } | null>
+      }
     }
   }
 }
