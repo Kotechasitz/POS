@@ -662,3 +662,40 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
+
+/* ---- Category Manager ---- */
+
+.category-manager-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.category-manager-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.category-manager-add-form {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.category-manager-add-form label {
+  display: none;
+}
+
+.category-manager-add-form input {
+  flex: 1;
+  padding: 9px var(--space-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  font-size: 14px;
+}
