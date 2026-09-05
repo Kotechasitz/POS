@@ -5,6 +5,8 @@ export interface ProductRecord {
   priceCents: number
   stock: number
   isActive: boolean
+  categoryId: string | null
+  imagePath: string | null
   createdAt: string
   updatedAt: string
 }
@@ -14,6 +16,8 @@ export interface CreateProductInput {
   name: string
   priceCents: number
   stock: number
+  categoryId?: string | null
+  imageSourcePath?: string | null
 }
 
 export interface UpdateProductInput {
@@ -22,4 +26,7 @@ export interface UpdateProductInput {
   priceCents?: number
   stock?: number
   isActive?: boolean
+  categoryId?: string | null
+  imageSourcePath?: string | null
+  clearImage?: boolean
 }

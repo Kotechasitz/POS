@@ -1,6 +1,15 @@
 import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core'
 import type { ProductRecord } from '../../shared/product'
 
+export const categories = sqliteTable('categories', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull().unique(),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull()
+})
+
+export type CategoryRow = typeof categories.$inferSelect
+
 export const products = sqliteTable('products', {
   id: text('id').primaryKey(),
   barcode: text('barcode').notNull().unique(),
@@ -8,6 +17,8 @@ export const products = sqliteTable('products', {
   priceCents: integer('price_cents').notNull(),
   stock: integer('stock').notNull().default(0),
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  categoryId: text('category_id').references(() => categories.id),
+  imagePath: text('image_path'),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull()
 })

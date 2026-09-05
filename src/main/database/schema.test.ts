@@ -5,7 +5,7 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { products } from './schema'
 
 describe('database schema', () => {
-  it('creates all four MVP tables', () => {
+  it('creates all five MVP tables', () => {
     const sqlite = new Database(':memory:')
     const db = drizzle(sqlite)
     migrate(db, { migrationsFolder: './drizzle' })
@@ -18,7 +18,7 @@ describe('database schema', () => {
       .map((row) => (row as { name: string }).name)
       .sort()
 
-    expect(tables).toEqual(['products', 'sale_items', 'sales', 'stock_transactions'])
+    expect(tables).toEqual(['categories', 'products', 'sale_items', 'sales', 'stock_transactions'])
     sqlite.close()
   })
 
