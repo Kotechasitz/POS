@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import type { HeldCart } from './heldCartsStore'
 import { Money } from '../../../../shared/money'
 import { cartTotalCents } from './cartStore'
@@ -17,6 +18,16 @@ function HeldCartsModal({
   onDiscard,
   onClose
 }: HeldCartsModalProps): React.JSX.Element {
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (event.key === 'Escape') {
+        onClose()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
   function handleBackdropClick(event: React.MouseEvent<HTMLDivElement>): void {
     if (event.target === event.currentTarget) {
       onClose()
@@ -55,7 +66,11 @@ function HeldCartsModal({
                 <button type="button" className="btn btn-primary" onClick={() => onResume(held.id)}>
                   Resume
                 </button>
-                <button type="button" className="btn btn-secondary" onClick={() => onDiscard(held.id)}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => onDiscard(held.id)}
+                >
                   Discard
                 </button>
               </li>

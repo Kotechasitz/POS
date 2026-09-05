@@ -17,7 +17,7 @@ describe('heldCartsStore', () => {
   })
 
   it('holds a cart with a trimmed label', () => {
-    useHeldCartsStore.getState().hold([coke], '  Table 4  ')
+    useHeldCartsStore.getState().hold([coke], '  Table 4  ', '')
 
     const held = useHeldCartsStore.getState().heldCarts
     expect(held).toHaveLength(1)
@@ -28,27 +28,27 @@ describe('heldCartsStore', () => {
   })
 
   it('holds a cart with a null label when no label is given', () => {
-    useHeldCartsStore.getState().hold([coke], '')
+    useHeldCartsStore.getState().hold([coke], '', '')
 
     expect(useHeldCartsStore.getState().heldCarts[0].label).toBeNull()
   })
 
   it('holds a cart with a null label when the label is only whitespace', () => {
-    useHeldCartsStore.getState().hold([coke], '   ')
+    useHeldCartsStore.getState().hold([coke], '   ', '')
 
     expect(useHeldCartsStore.getState().heldCarts[0].label).toBeNull()
   })
 
   it('holds multiple carts independently', () => {
-    useHeldCartsStore.getState().hold([coke], 'First')
-    useHeldCartsStore.getState().hold([coke], 'Second')
+    useHeldCartsStore.getState().hold([coke], 'First', '')
+    useHeldCartsStore.getState().hold([coke], 'Second', '')
 
     expect(useHeldCartsStore.getState().heldCarts).toHaveLength(2)
     expect(useHeldCartsStore.getState().heldCarts.map((h) => h.label)).toEqual(['First', 'Second'])
   })
 
   it('discards a held cart by id', () => {
-    useHeldCartsStore.getState().hold([coke], 'First')
+    useHeldCartsStore.getState().hold([coke], 'First', '')
     const id = useHeldCartsStore.getState().heldCarts[0].id
 
     useHeldCartsStore.getState().discard(id)
@@ -57,10 +57,16 @@ describe('heldCartsStore', () => {
   })
 
   it('does nothing when discarding an id that does not exist', () => {
-    useHeldCartsStore.getState().hold([coke], 'First')
+    useHeldCartsStore.getState().hold([coke], 'First', '')
 
     useHeldCartsStore.getState().discard('does-not-exist')
 
     expect(useHeldCartsStore.getState().heldCarts).toHaveLength(1)
+  })
+
+  it('holds a cart with its discount amount', () => {
+    useHeldCartsStore.getState().hold([coke], 'Table 4', '5.50')
+
+    expect(useHeldCartsStore.getState().heldCarts[0].discountBaht).toBe('5.50')
   })
 })

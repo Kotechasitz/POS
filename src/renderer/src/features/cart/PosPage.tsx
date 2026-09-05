@@ -117,14 +117,27 @@ function PosPage(): React.JSX.Element {
         return
       }
       event.preventDefault()
-      if (items.length === 0 || completing || showPaymentModal) {
+      if (
+        items.length === 0 ||
+        completing ||
+        showPaymentModal ||
+        showHoldModal ||
+        showHeldCartsModal
+      ) {
         return
       }
       handleFinishSaleClick()
     }
     document.addEventListener('keydown', handleGlobalKeyDown)
     return () => document.removeEventListener('keydown', handleGlobalKeyDown)
-  }, [items.length, completing, showPaymentModal, handleFinishSaleClick])
+  }, [
+    items.length,
+    completing,
+    showPaymentModal,
+    showHoldModal,
+    showHeldCartsModal,
+    handleFinishSaleClick
+  ])
 
   async function handleSelectProductTile(product: ProductRecord): Promise<void> {
     await scan(product.barcode)
@@ -149,8 +162,10 @@ function PosPage(): React.JSX.Element {
   }
 
   function handleHoldConfirm(label: string): void {
-    holdCart(items, label)
+    holdCart(items, label, discountBaht)
     clear()
+    setDiscountBaht('')
+    setDiscountError(null)
     setShowHoldModal(false)
   }
 
@@ -173,12 +188,15 @@ function PosPage(): React.JSX.Element {
       return
     }
     restoreItems(held.items)
+    setDiscountBaht(held.discountBaht)
+    setDiscountError(null)
     discardHeldCart(id)
     setShowHeldCartsModal(false)
   }
 
   function handleDiscardHeldCart(id: string): void {
     discardHeldCart(id)
+    setHeldCartsError(null)
   }
 
   function handleCloseHeldCarts(): void {

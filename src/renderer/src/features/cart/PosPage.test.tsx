@@ -362,6 +362,29 @@ describe('PosPage', () => {
     expect(screen.getByRole('button', { name: 'Held Carts (1)' })).toBeInTheDocument()
   })
 
+  it('carries a discount into a held cart and restores it when the cart is resumed', async () => {
+    const user = userEvent.setup()
+    render(<PosPage />)
+
+    await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
+    await waitFor(() => expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument())
+    await user.type(screen.getByLabelText('Discount (Baht)'), '5')
+
+    await user.click(screen.getByRole('button', { name: 'Hold' }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: 'Hold' }))
+    await waitFor(() => expect(screen.getByText('Cart is empty')).toBeInTheDocument())
+
+    expect(screen.getByLabelText('Discount (Baht)')).toHaveValue(null)
+
+    await user.click(screen.getByRole('button', { name: 'Held Carts (1)' }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: 'Resume' }))
+
+    expect(screen.getByLabelText('Discount (Baht)')).toHaveValue(5)
+    expect(screen.getByLabelText('Cart total')).toHaveTextContent('฿15.00')
+  })
+
   it('discards a held cart', async () => {
     const user = userEvent.setup()
     render(<PosPage />)
@@ -541,5 +564,35 @@ describe('PosPage', () => {
     await user.keyboard('{F12}')
 
     expect(screen.getAllByRole('dialog')).toHaveLength(1)
+  })
+
+  it('pressing F12 while the Hold Cart modal is open does not open the payment method modal', async () => {
+    const user = userEvent.setup()
+    render(<PosPage />)
+
+    await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
+    await waitFor(() => expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: 'Hold' }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+
+    await user.keyboard('{F12}')
+
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+    expect(screen.queryByRole('button', { name: 'Cash' })).not.toBeInTheDocument()
+  })
+
+  it('pressing F12 while the Held Carts modal is open does not open the payment method modal', async () => {
+    const user = userEvent.setup()
+    render(<PosPage />)
+
+    await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
+    await waitFor(() => expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: 'Held Carts (0)' }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+
+    await user.keyboard('{F12}')
+
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+    expect(screen.queryByRole('button', { name: 'Cash' })).not.toBeInTheDocument()
   })
 })

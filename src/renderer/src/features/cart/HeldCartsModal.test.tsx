@@ -10,6 +10,7 @@ const held: HeldCart = {
   items: [
     { productId: '1', barcode: '111', name: 'Coke', unitPriceCents: 2000, stock: 5, quantity: 2 }
   ],
+  discountBaht: '',
   heldAt: '2026-09-05T10:00:00.000Z'
 }
 
@@ -17,13 +18,20 @@ const untitledHeld: HeldCart = {
   id: 'held-2',
   label: null,
   items: [],
+  discountBaht: '',
   heldAt: '2026-09-05T10:05:00.000Z'
 }
 
 describe('HeldCartsModal', () => {
   it('shows a message when there are no held carts', () => {
     render(
-      <HeldCartsModal heldCarts={[]} error={null} onResume={vi.fn()} onDiscard={vi.fn()} onClose={vi.fn()} />
+      <HeldCartsModal
+        heldCarts={[]}
+        error={null}
+        onResume={vi.fn()}
+        onDiscard={vi.fn()}
+        onClose={vi.fn()}
+      />
     )
     expect(screen.getByText('No held carts.')).toBeInTheDocument()
   })
@@ -109,10 +117,34 @@ describe('HeldCartsModal', () => {
     const user = userEvent.setup()
     const onClose = vi.fn()
     render(
-      <HeldCartsModal heldCarts={[]} error={null} onResume={vi.fn()} onDiscard={vi.fn()} onClose={onClose} />
+      <HeldCartsModal
+        heldCarts={[]}
+        error={null}
+        onResume={vi.fn()}
+        onDiscard={vi.fn()}
+        onClose={onClose}
+      />
     )
 
     await user.click(screen.getByRole('button', { name: 'Close' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('calls onClose when Escape is pressed', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    render(
+      <HeldCartsModal
+        heldCarts={[]}
+        error={null}
+        onResume={vi.fn()}
+        onDiscard={vi.fn()}
+        onClose={onClose}
+      />
+    )
+
+    await user.keyboard('{Escape}')
+
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 })
