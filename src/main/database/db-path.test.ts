@@ -7,7 +7,7 @@ vi.mock('electron', () => ({
   app: { getPath: vi.fn(() => 'C:\\fake\\userData') }
 }))
 
-import { getDbPath, getMigrationsPath } from './db-path'
+import { getDbPath, getMigrationsPath, getProductImagesPath } from './db-path'
 
 describe('getDbPath', () => {
   afterEach(() => {
@@ -42,5 +42,21 @@ describe('getMigrationsPath', () => {
       configurable: true
     })
     expect(getMigrationsPath()).toBe(path.join('C:\\fake\\resources', 'drizzle'))
+  })
+})
+
+describe('getProductImagesPath', () => {
+  afterEach(() => {
+    isMock.dev = true
+  })
+
+  it('resolves to a project-local folder in dev mode', () => {
+    isMock.dev = true
+    expect(getProductImagesPath()).toBe(path.resolve(process.cwd(), 'dev-product-images'))
+  })
+
+  it("resolves under Electron's userData directory in production", () => {
+    isMock.dev = false
+    expect(getProductImagesPath()).toBe(path.join('C:\\fake\\userData', 'product-images'))
   })
 })

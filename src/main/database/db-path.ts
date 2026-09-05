@@ -24,3 +24,14 @@ export function getMigrationsPath(): string {
   }
   return path.join(process.resourcesPath, 'drizzle')
 }
+
+// Same dev/production split as getDbPath/getMigrationsPath: in dev, a
+// project-local folder that's easy to find and safe to gitignore; in
+// production, Electron's userData directory, which is guaranteed writable
+// and unique per install.
+export function getProductImagesPath(): string {
+  if (is.dev) {
+    return path.resolve(process.cwd(), 'dev-product-images')
+  }
+  return path.join(app.getPath('userData'), 'product-images')
+}
