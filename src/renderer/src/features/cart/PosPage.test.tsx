@@ -111,7 +111,7 @@ describe('PosPage', () => {
     expect(useCartStore.getState().items[0].quantity).toBe(1)
   })
 
-  it('completes the sale, clears the cart, and shows a success message with the total', async () => {
+  it('opens the payment method modal, then completes the sale, clears the cart, and shows a success message', async () => {
     const user = userEvent.setup()
     const sale: SaleRecord = {
       id: 'sale-1',
@@ -142,10 +142,36 @@ describe('PosPage', () => {
     await waitFor(() => expect(screen.getByLabelText('Cart total')).toHaveTextContent('฿40.00'))
 
     await user.click(screen.getByRole('button', { name: 'Finish Sale' }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
 
+    await user.click(screen.getByRole('button', { name: 'Cash' }))
+
+    expect(window.api.sales.complete).toHaveBeenCalledWith(
+      [{ productId: '1', productName: 'Coke', unitPriceCents: 2000, quantity: 2 }],
+      'CASH',
+      0
+    )
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     await waitFor(() => expect(screen.getByText('Cart is empty')).toBeInTheDocument())
     expect(screen.getByRole('status')).toHaveTextContent('฿40.00')
     expect(screen.getByLabelText('Cart total')).toHaveTextContent('฿0.00')
+  })
+
+  it('closes the payment method modal without completing the sale when Cancel is clicked', async () => {
+    const user = userEvent.setup()
+    render(<PosPage />)
+
+    await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
+    await waitFor(() => expect(screen.getByText('Coke')).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: 'Finish Sale' }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(window.api.sales.complete).not.toHaveBeenCalled()
+    expect(screen.getByText('Coke')).toBeInTheDocument()
   })
 
   it('shows an error and keeps the cart when the sale is rejected', async () => {
@@ -162,12 +188,15 @@ describe('PosPage', () => {
     await waitFor(() => expect(screen.getByText('Coke')).toBeInTheDocument())
 
     await user.click(screen.getByRole('button', { name: 'Finish Sale' }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: 'Cash' }))
 
     await waitFor(() =>
       expect(screen.getByRole('alert')).toHaveTextContent(
         'Not enough stock for "Coke": 1 available, 2 requested'
       )
     )
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.getByText('Coke')).toBeInTheDocument()
   })
 
@@ -185,6 +214,8 @@ describe('PosPage', () => {
     await waitFor(() => expect(screen.getByText('Coke')).toBeInTheDocument())
 
     await user.click(screen.getByRole('button', { name: 'Finish Sale' }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: 'Cash' }))
 
     await waitFor(() =>
       expect(screen.getByRole('alert')).toHaveTextContent(
@@ -221,6 +252,8 @@ describe('PosPage', () => {
     await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
     await waitFor(() => expect(screen.getByText('Coke')).toBeInTheDocument())
     await user.click(screen.getByRole('button', { name: 'Finish Sale' }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: 'Cash' }))
     await waitFor(() => expect(screen.getByRole('status')).toBeInTheDocument())
 
     await user.type(screen.getByLabelText('Barcode'), '111{Enter}')

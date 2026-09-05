@@ -3,7 +3,9 @@ import { useCartStore, cartTotalCents } from './cartStore'
 import { useBarcodeScan } from './useBarcodeScan'
 import { useCompleteSale } from './useCompleteSale'
 import CartTable from './CartTable'
+import PaymentMethodModal from './PaymentMethodModal'
 import { Money } from '../../../../shared/money'
+import type { PaymentMethod } from '../../../../shared/sale'
 
 function PosPage(): React.JSX.Element {
   const items = useCartStore((state) => state.items)
@@ -19,6 +21,7 @@ function PosPage(): React.JSX.Element {
     clearError: clearSaleError
   } = useCompleteSale()
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -60,11 +63,20 @@ function PosPage(): React.JSX.Element {
     clearSaleError()
   }
 
-  async function handleFinishSale(): Promise<void> {
-    const sale = await completeSale()
+  function handleFinishSaleClick(): void {
+    setShowPaymentModal(true)
+  }
+
+  async function handleSelectPaymentMethod(method: PaymentMethod): Promise<void> {
+    const sale = await completeSale(method)
+    setShowPaymentModal(false)
     if (sale) {
       setSuccessMessage(`Sale completed — ${Money.fromCents(sale.totalCents).format()}`)
     }
+  }
+
+  function handleCancelPaymentModal(): void {
+    setShowPaymentModal(false)
   }
 
   return (
@@ -122,12 +134,20 @@ function PosPage(): React.JSX.Element {
         <button
           type="button"
           className="btn btn-primary"
-          onClick={handleFinishSale}
+          onClick={handleFinishSaleClick}
           disabled={items.length === 0 || completing}
         >
           {completing ? 'Completing…' : 'Finish Sale'}
         </button>
       </div>
+
+      {showPaymentModal && (
+        <PaymentMethodModal
+          submitting={completing}
+          onSelect={handleSelectPaymentMethod}
+          onCancel={handleCancelPaymentModal}
+        />
+      )}
     </div>
   )
 }

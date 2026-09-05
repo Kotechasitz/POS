@@ -436,6 +436,17 @@
   margin-top: var(--space-1);
 }
 
+.payment-method-options {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.payment-method-btn {
+  flex: 1;
+  padding: var(--space-4) var(--space-3);
+  font-size: 15px;
+}
+
 @media (max-width: 720px) {
   .search-field {
     width: 200px;
