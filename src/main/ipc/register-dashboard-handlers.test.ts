@@ -49,7 +49,7 @@ describe('registerDashboardHandlers', () => {
     const coke = createProduct(client.db, { barcode: '111', name: 'Coke', priceCents: 2000, stock: 50 })
     completeSale(client.db, [
       { productId: coke.id, productName: coke.name, unitPriceCents: coke.priceCents, quantity: 2 }
-    ])
+    ], 'CASH')
 
     const summaryHandler = handlers.get('dashboard:summary')!
     const summary = summaryHandler({}) as DashboardSummary
@@ -59,8 +59,8 @@ describe('registerDashboardHandlers', () => {
   it('dashboard:topProducts passes a given limit through', () => {
     const a = createProduct(client.db, { barcode: '1', name: 'A', priceCents: 100, stock: 50 })
     const b = createProduct(client.db, { barcode: '2', name: 'B', priceCents: 100, stock: 50 })
-    completeSale(client.db, [{ productId: a.id, productName: a.name, unitPriceCents: 100, quantity: 2 }])
-    completeSale(client.db, [{ productId: b.id, productName: b.name, unitPriceCents: 100, quantity: 1 }])
+    completeSale(client.db, [{ productId: a.id, productName: a.name, unitPriceCents: 100, quantity: 2 }], 'CASH')
+    completeSale(client.db, [{ productId: b.id, productName: b.name, unitPriceCents: 100, quantity: 1 }], 'CASH')
 
     const topProductsHandler = handlers.get('dashboard:topProducts')!
     const result = topProductsHandler({}, 1) as unknown[]

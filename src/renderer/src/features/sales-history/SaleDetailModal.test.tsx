@@ -8,6 +8,8 @@ const sale: SaleRecord = {
   id: 'sale-1',
   totalCents: 6000,
   status: 'COMPLETED',
+  paymentMethod: 'CASH',
+  discountCents: 0,
   createdAt: '2026-09-03T10:00:00.000Z',
   items: [
     {

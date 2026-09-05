@@ -60,8 +60,8 @@ describe('getDashboardSummary', () => {
       unitPriceCents: water.priceCents,
       quantity: 3
     }
-    completeSale(client.db, [line1]) // 4000 cents, 2 units
-    completeSale(client.db, [line2]) // 3000 cents, 3 units
+    completeSale(client.db, [line1], 'CASH') // 4000 cents, 2 units
+    completeSale(client.db, [line2], 'CASH') // 3000 cents, 3 units
 
     const summary = getDashboardSummary(client.db)
     expect(summary).toEqual({ salesTodayCents: 7000, orderCountToday: 2, unitsSoldToday: 5 })
@@ -214,10 +214,10 @@ describe('getTopProducts', () => {
 
     completeSale(client.db, [
       { productId: coke.id, productName: coke.name, unitPriceCents: coke.priceCents, quantity: 2 }
-    ])
+    ], 'CASH')
     completeSale(client.db, [
       { productId: water.id, productName: water.name, unitPriceCents: water.priceCents, quantity: 5 }
-    ])
+    ], 'CASH')
 
     const top = getTopProducts(client.db)
     expect(top[0]).toMatchObject({ productId: water.id, productName: 'Water', totalQuantity: 5, totalRevenueCents: 5000 })
@@ -228,10 +228,10 @@ describe('getTopProducts', () => {
     const coke = createProduct(client.db, { barcode: '111', name: 'Coke', priceCents: 2000, stock: 50 })
     completeSale(client.db, [
       { productId: coke.id, productName: coke.name, unitPriceCents: coke.priceCents, quantity: 2 }
-    ])
+    ], 'CASH')
     completeSale(client.db, [
       { productId: coke.id, productName: coke.name, unitPriceCents: coke.priceCents, quantity: 3 }
-    ])
+    ], 'CASH')
 
     const top = getTopProducts(client.db)
     expect(top).toHaveLength(1)
@@ -242,9 +242,9 @@ describe('getTopProducts', () => {
     const a = createProduct(client.db, { barcode: '1', name: 'A', priceCents: 100, stock: 50 })
     const b = createProduct(client.db, { barcode: '2', name: 'B', priceCents: 100, stock: 50 })
     const c = createProduct(client.db, { barcode: '3', name: 'C', priceCents: 100, stock: 50 })
-    completeSale(client.db, [{ productId: a.id, productName: a.name, unitPriceCents: 100, quantity: 3 }])
-    completeSale(client.db, [{ productId: b.id, productName: b.name, unitPriceCents: 100, quantity: 2 }])
-    completeSale(client.db, [{ productId: c.id, productName: c.name, unitPriceCents: 100, quantity: 1 }])
+    completeSale(client.db, [{ productId: a.id, productName: a.name, unitPriceCents: 100, quantity: 3 }], 'CASH')
+    completeSale(client.db, [{ productId: b.id, productName: b.name, unitPriceCents: 100, quantity: 2 }], 'CASH')
+    completeSale(client.db, [{ productId: c.id, productName: c.name, unitPriceCents: 100, quantity: 1 }], 'CASH')
 
     const top = getTopProducts(client.db, 2)
     expect(top).toHaveLength(2)

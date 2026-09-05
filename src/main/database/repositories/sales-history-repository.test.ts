@@ -39,10 +39,10 @@ describe('listSales', () => {
     })
     const first = completeSale(client.db, [
       { productId: coke.id, productName: coke.name, unitPriceCents: coke.priceCents, quantity: 1 }
-    ])
+    ], 'CASH')
     const second = completeSale(client.db, [
       { productId: coke.id, productName: coke.name, unitPriceCents: coke.priceCents, quantity: 2 }
-    ])
+    ], 'CASH')
 
     const list = listSales(client.db)
     expect(list).toHaveLength(2)
@@ -73,10 +73,10 @@ describe('listSales', () => {
         unitPriceCents: water.priceCents,
         quantity: 1
       }
-    ])
+    ], 'CASH')
     const oneLineSale = completeSale(client.db, [
       { productId: coke.id, productName: coke.name, unitPriceCents: coke.priceCents, quantity: 1 }
-    ])
+    ], 'CASH')
 
     const list = listSales(client.db)
     const twoLine = list.find((s) => s.id === twoLineSale.id)
@@ -112,11 +112,13 @@ describe('getSaleWithItems', () => {
     })
     const sale = completeSale(client.db, [
       { productId: coke.id, productName: coke.name, unitPriceCents: coke.priceCents, quantity: 3 }
-    ])
+    ], 'CASH')
 
     const detail = getSaleWithItems(client.db, sale.id)
     expect(detail?.totalCents).toBe(6000)
     expect(detail?.status).toBe('COMPLETED')
+    expect(detail?.paymentMethod).toBe('CASH')
+    expect(detail?.discountCents).toBe(0)
     expect(detail?.items).toHaveLength(1)
     expect(detail?.items[0]).toMatchObject({ productName: 'Coke', quantity: 3, totalCents: 6000 })
   })

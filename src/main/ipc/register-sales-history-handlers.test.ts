@@ -51,7 +51,7 @@ describe('registerSalesHistoryHandlers', () => {
     })
     completeSale(client.db, [
       { productId: coke.id, productName: coke.name, unitPriceCents: coke.priceCents, quantity: 1 }
-    ])
+    ], 'CASH')
 
     const listHandler = handlers.get('salesHistory:list')!
     const list = listHandler({}) as unknown[]
@@ -67,7 +67,7 @@ describe('registerSalesHistoryHandlers', () => {
     })
     const sale = completeSale(client.db, [
       { productId: coke.id, productName: coke.name, unitPriceCents: coke.priceCents, quantity: 1 }
-    ])
+    ], 'CASH')
 
     const detailHandler = handlers.get('salesHistory:detail')!
     const found = detailHandler({}, sale.id) as { id: string } | null

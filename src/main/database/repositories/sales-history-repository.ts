@@ -2,7 +2,7 @@ import { eq, sql } from 'drizzle-orm'
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import { sales, saleItems } from '../schema'
 import type { SaleListItem } from '../../../shared/salesHistory'
-import type { SaleRecord } from '../../../shared/sale'
+import type { SaleRecord, PaymentMethod } from '../../../shared/sale'
 
 export function listSales(db: BetterSQLite3Database): SaleListItem[] {
   const rows = db
@@ -36,6 +36,8 @@ export function getSaleWithItems(
     id: sale.id,
     totalCents: sale.totalCents,
     status: sale.status,
+    paymentMethod: sale.paymentMethod as PaymentMethod,
+    discountCents: sale.discountCents,
     createdAt: sale.createdAt,
     items
   }
