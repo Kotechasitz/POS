@@ -25,10 +25,16 @@ describe('PosPage', () => {
     window.api = {
       dbHealth: vi.fn(),
       products: {
-        list: vi.fn(),
+        list: vi.fn().mockResolvedValue([coke]),
         create: vi.fn(),
         update: vi.fn(),
         getByBarcode: vi.fn().mockResolvedValue(coke)
+      },
+      categories: {
+        list: vi.fn().mockResolvedValue([]),
+        create: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn()
       },
       sales: {
         complete: vi.fn()
@@ -42,7 +48,7 @@ describe('PosPage', () => {
 
     await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
 
-    await waitFor(() => expect(screen.getByText('Coke')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument())
     expect(screen.getByLabelText('Cart total')).toHaveTextContent('฿20.00')
   })
 
@@ -51,7 +57,7 @@ describe('PosPage', () => {
     render(<PosPage />)
 
     await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
-    await waitFor(() => expect(screen.getByText('Coke')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument())
     await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
 
     await waitFor(() => expect(screen.getByLabelText('Cart total')).toHaveTextContent('฿40.00'))
@@ -74,7 +80,7 @@ describe('PosPage', () => {
     render(<PosPage />)
 
     await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
-    await waitFor(() => expect(screen.getByText('Coke')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument())
 
     await user.click(screen.getByRole('button', { name: 'Clear Cart' }))
 
@@ -93,7 +99,7 @@ describe('PosPage', () => {
     const { unmount } = render(<PosPage />)
 
     await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
-    await waitFor(() => expect(screen.getByText('Coke')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument())
     expect(useCartStore.getState().items[0].stock).toBe(5)
 
     // Simulate the product's real stock having been edited down elsewhere (e.g. the
@@ -137,7 +143,7 @@ describe('PosPage', () => {
     render(<PosPage />)
 
     await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
-    await waitFor(() => expect(screen.getByText('Coke')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument())
     await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
     await waitFor(() => expect(screen.getByLabelText('Cart total')).toHaveTextContent('฿40.00'))
 
@@ -162,7 +168,7 @@ describe('PosPage', () => {
     render(<PosPage />)
 
     await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
-    await waitFor(() => expect(screen.getByText('Coke')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument())
 
     await user.click(screen.getByRole('button', { name: 'Finish Sale' }))
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
@@ -175,7 +181,7 @@ describe('PosPage', () => {
     render(<PosPage />)
 
     await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
-    await waitFor(() => expect(screen.getByText('Coke')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument())
 
     await user.click(screen.getByRole('button', { name: 'Finish Sale' }))
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
@@ -184,7 +190,7 @@ describe('PosPage', () => {
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(window.api.sales.complete).not.toHaveBeenCalled()
-    expect(screen.getByText('Coke')).toBeInTheDocument()
+    expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument()
   })
 
   it('shows an error and keeps the cart when the sale is rejected', async () => {
@@ -198,7 +204,7 @@ describe('PosPage', () => {
     render(<PosPage />)
 
     await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
-    await waitFor(() => expect(screen.getByText('Coke')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument())
 
     await user.click(screen.getByRole('button', { name: 'Finish Sale' }))
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
@@ -210,7 +216,7 @@ describe('PosPage', () => {
       )
     )
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(screen.getByText('Coke')).toBeInTheDocument()
+    expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument()
   })
 
   it('clears a stale sale-rejection banner once a new item is scanned', async () => {
@@ -224,7 +230,7 @@ describe('PosPage', () => {
     render(<PosPage />)
 
     await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
-    await waitFor(() => expect(screen.getByText('Coke')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument())
 
     await user.click(screen.getByRole('button', { name: 'Finish Sale' }))
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
@@ -263,7 +269,7 @@ describe('PosPage', () => {
     render(<PosPage />)
 
     await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
-    await waitFor(() => expect(screen.getByText('Coke')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument())
     await user.click(screen.getByRole('button', { name: 'Finish Sale' }))
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
     await user.click(screen.getByRole('button', { name: 'Cash' }))
@@ -272,5 +278,21 @@ describe('PosPage', () => {
     await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
 
     await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument())
+  })
+
+  it('renders a clickable product grid populated from the products list', async () => {
+    render(<PosPage />)
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /Coke/ })).toBeInTheDocument())
+  })
+
+  it('clicking a product tile adds it to the cart, exactly like scanning its barcode', async () => {
+    const user = userEvent.setup()
+    render(<PosPage />)
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /Coke/ })).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: /Coke/ }))
+
+    await waitFor(() => expect(screen.getByLabelText('Cart total')).toHaveTextContent('฿20.00'))
   })
 })

@@ -54,6 +54,18 @@ describe('useBarcodeScan', () => {
     expect(result.current.error).toBeNull()
   })
 
+  it('exposes scan() directly, for callers that already have a barcode string (e.g. a product-grid tile click)', async () => {
+    ;(window.api.products.getByBarcode as ReturnType<typeof vi.fn>).mockResolvedValue(coke)
+    const { result } = renderHook(() => useBarcodeScan())
+
+    await act(async () => {
+      await result.current.scan('111')
+    })
+
+    await waitFor(() => expect(useCartStore.getState().items).toHaveLength(1))
+    expect(result.current.error).toBeNull()
+  })
+
   it('shows an error and does not touch the cart when the barcode is unknown', async () => {
     ;(window.api.products.getByBarcode as ReturnType<typeof vi.fn>).mockResolvedValue(null)
     const { result } = renderHook(() => useBarcodeScan())

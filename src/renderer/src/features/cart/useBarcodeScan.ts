@@ -7,6 +7,7 @@ export interface UseBarcodeScanResult {
   setValue: (value: string) => void
   error: string | null
   handleKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void
+  scan: (barcode: string) => Promise<void>
   clearError: () => void
 }
 
@@ -65,5 +66,5 @@ export function useBarcodeScan(): UseBarcodeScanResult {
     setError(null)
   }, [])
 
-  return { inputRef, value, setValue, error, handleKeyDown, clearError }
+  return { inputRef, value, setValue, error, handleKeyDown, scan, clearError }
 }

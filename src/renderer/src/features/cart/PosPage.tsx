@@ -3,9 +3,13 @@ import { useCartStore, cartTotalCents } from './cartStore'
 import { useBarcodeScan } from './useBarcodeScan'
 import { useCompleteSale } from './useCompleteSale'
 import CartTable from './CartTable'
+import ProductGrid from './ProductGrid'
 import PaymentMethodModal from './PaymentMethodModal'
+import { useProducts } from '../products/useProducts'
+import { useCategories } from '../categories/useCategories'
 import { Money } from '../../../../shared/money'
 import type { PaymentMethod } from '../../../../shared/sale'
+import type { ProductRecord } from '../../../../shared/product'
 
 function PosPage(): React.JSX.Element {
   const items = useCartStore((state) => state.items)
@@ -13,7 +17,10 @@ function PosPage(): React.JSX.Element {
   const decrementItem = useCartStore((state) => state.decrementItem)
   const removeItem = useCartStore((state) => state.removeItem)
   const clear = useCartStore((state) => state.clear)
-  const { inputRef, value, setValue, error, handleKeyDown, clearError } = useBarcodeScan()
+  const { inputRef, value, setValue, error, handleKeyDown, scan, clearError } = useBarcodeScan()
+  const { products } = useProducts()
+  const { categories } = useCategories()
+  const [selectedCategoryId, setSelectedCategoryId] = useState('')
   const {
     completing,
     error: saleError,
@@ -67,6 +74,10 @@ function PosPage(): React.JSX.Element {
     setShowPaymentModal(true)
   }
 
+  async function handleSelectProductTile(product: ProductRecord): Promise<void> {
+    await scan(product.barcode)
+  }
+
   async function handleSelectPaymentMethod(method: PaymentMethod): Promise<void> {
     const sale = await completeSale(method)
     setShowPaymentModal(false)
@@ -101,6 +112,14 @@ function PosPage(): React.JSX.Element {
           disabled={showPaymentModal}
         />
       </div>
+
+      <ProductGrid
+        products={products}
+        categories={categories}
+        selectedCategoryId={selectedCategoryId}
+        onSelectCategory={setSelectedCategoryId}
+        onSelectProduct={handleSelectProductTile}
+      />
 
       {(error || saleError) && !successMessage && (
         <p role="alert" className="alert alert-danger">
