@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import type { CreateProductInput, ProductRecord, UpdateProductInput } from '../shared/product'
+import type { CategoryRecord } from '../shared/category'
 import type { SaleLineInput, SaleRecord } from '../shared/sale'
 import type { DashboardSummary, TopProduct, DailySales } from '../shared/dashboard'
 import type { SaleListItem } from '../shared/salesHistory'
@@ -16,6 +17,13 @@ const api = {
       ipcRenderer.invoke('products:update', id, input),
     getByBarcode: (barcode: string): Promise<ProductRecord | null> =>
       ipcRenderer.invoke('products:getByBarcode', barcode)
+  },
+  categories: {
+    list: (): Promise<CategoryRecord[]> => ipcRenderer.invoke('categories:list'),
+    create: (name: string): Promise<CategoryRecord> => ipcRenderer.invoke('categories:create', name),
+    update: (id: string, name: string): Promise<CategoryRecord> =>
+      ipcRenderer.invoke('categories:update', id, name),
+    delete: (id: string): Promise<void> => ipcRenderer.invoke('categories:delete', id)
   },
   sales: {
     complete: (items: SaleLineInput[]): Promise<SaleRecord> =>

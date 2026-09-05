@@ -7,6 +7,7 @@ import { createDbClient, type DbClient } from './database/client'
 import { getDbPath, getMigrationsPath } from './database/db-path'
 import { products } from './database/schema'
 import { registerProductHandlers } from './ipc/register-product-handlers'
+import { registerCategoryHandlers } from './ipc/register-category-handlers'
 import { registerSaleHandlers } from './ipc/register-sale-handlers'
 import { registerDashboardHandlers } from './ipc/register-dashboard-handlers'
 import { registerSalesHistoryHandlers } from './ipc/register-sales-history-handlers'
@@ -83,6 +84,7 @@ app.whenReady().then(async () => {
   })
 
   registerProductHandlers(dbClient.db)
+  registerCategoryHandlers(dbClient.db)
   registerSaleHandlers(dbClient.db)
   registerDashboardHandlers(dbClient.db)
   registerSalesHistoryHandlers(dbClient.db)

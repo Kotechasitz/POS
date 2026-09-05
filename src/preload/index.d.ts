@@ -1,5 +1,6 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
 import type { CreateProductInput, ProductRecord, UpdateProductInput } from '../shared/product'
+import type { CategoryRecord } from '../shared/category'
 import type { SaleLineInput, SaleRecord } from '../shared/sale'
 import type { DashboardSummary, TopProduct, DailySales } from '../shared/dashboard'
 import type { SaleListItem } from '../shared/salesHistory'
@@ -14,6 +15,12 @@ declare global {
         create: (input: CreateProductInput) => Promise<ProductRecord>
         update: (id: string, input: UpdateProductInput) => Promise<ProductRecord>
         getByBarcode: (barcode: string) => Promise<ProductRecord | null>
+      }
+      categories: {
+        list: () => Promise<CategoryRecord[]>
+        create: (name: string) => Promise<CategoryRecord>
+        update: (id: string, name: string) => Promise<CategoryRecord>
+        delete: (id: string) => Promise<void>
       }
       sales: {
         complete: (items: SaleLineInput[]) => Promise<SaleRecord>
