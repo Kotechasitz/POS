@@ -5,6 +5,7 @@ import type {
   UpdateProductInput
 } from '../../../../shared/product'
 import { Money } from '../../../../shared/money'
+import { useCategories } from '../categories/useCategories'
 
 export interface ProductFormProps {
   initialValues?: ProductRecord
@@ -29,6 +30,13 @@ function ProductForm({
   const [stock, setStock] = useState(initialValues ? initialValues.stock.toString() : '')
   const [isActive, setIsActive] = useState(initialValues?.isActive ?? true)
   const [formError, setFormError] = useState<string | null>(null)
+  const { categories } = useCategories()
+  const [categoryId, setCategoryId] = useState(initialValues?.categoryId ?? '')
+  const [imageSourcePath, setImageSourcePath] = useState<string | null>(null)
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(
+    initialValues?.imagePath ? `app-image://${initialValues.imagePath}` : null
+  )
+  const [imageCleared, setImageCleared] = useState(false)
 
   const isEditing = initialValues !== undefined
 
@@ -49,6 +57,21 @@ function ProductForm({
     if (event.target === event.currentTarget && !submitting) {
       onCancel()
     }
+  }
+
+  async function handlePickImage(): Promise<void> {
+    const picked = await window.api.images.pickProductImage()
+    if (picked) {
+      setImageSourcePath(picked.path)
+      setImagePreviewUrl(picked.previewDataUrl)
+      setImageCleared(false)
+    }
+  }
+
+  function handleRemoveImage(): void {
+    setImageSourcePath(null)
+    setImagePreviewUrl(null)
+    setImageCleared(true)
   }
 
   function handleSubmit(event: React.FormEvent): void {
@@ -85,10 +108,20 @@ function ProductForm({
         name: name.trim(),
         priceCents,
         stock: stockValue,
-        isActive
+        isActive,
+        categoryId: categoryId || null,
+        ...(imageSourcePath ? { imageSourcePath } : {}),
+        ...(imageCleared ? { clearImage: true } : {})
       })
     } else {
-      onSubmit({ barcode: barcode.trim(), name: name.trim(), priceCents, stock: stockValue })
+      onSubmit({
+        barcode: barcode.trim(),
+        name: name.trim(),
+        priceCents,
+        stock: stockValue,
+        categoryId: categoryId || undefined,
+        ...(imageSourcePath ? { imageSourcePath } : {})
+      })
     }
   }
 
@@ -149,6 +182,54 @@ function ProductForm({
                 onChange={(e) => setStock(e.target.value)}
                 disabled={submitting}
               />
+            </div>
+          </div>
+
+          <div className="field">
+            <label htmlFor="product-category">Category</label>
+            <select
+              id="product-category"
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+              disabled={submitting}
+            >
+              <option value="">No category</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="field">
+            <label>Product Image</label>
+            <div className="image-picker">
+              {imagePreviewUrl && (
+                <img
+                  src={imagePreviewUrl}
+                  alt="Product preview"
+                  className="image-picker-preview"
+                />
+              )}
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={handlePickImage}
+                disabled={submitting}
+              >
+                Choose Image
+              </button>
+              {imagePreviewUrl && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleRemoveImage}
+                  disabled={submitting}
+                >
+                  Remove Image
+                </button>
+              )}
             </div>
           </div>
 

@@ -127,7 +127,8 @@ describe('ProductsPage', () => {
         name: 'Water',
         priceCents: 1000,
         stock: 99,
-        isActive: true
+        isActive: true,
+        categoryId: null
       })
     )
   })
@@ -166,7 +167,8 @@ describe('ProductsPage', () => {
         name: 'Chips',
         priceCents: 3500,
         stock: 20,
-        isActive: true
+        isActive: true,
+        categoryId: null
       })
     )
   })

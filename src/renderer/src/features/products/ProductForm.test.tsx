@@ -1,10 +1,30 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import ProductForm from './ProductForm'
 import type { ProductRecord } from '../../../../shared/product'
+import type { CategoryRecord } from '../../../../shared/category'
+
+const beverages: CategoryRecord = { id: '1', name: 'Beverages', createdAt: '', updatedAt: '' }
 
 describe('ProductForm', () => {
+  beforeEach(() => {
+    window.api = {
+      dbHealth: vi.fn(),
+      products: { list: vi.fn(), create: vi.fn(), update: vi.fn(), getByBarcode: vi.fn() },
+      sales: { complete: vi.fn() },
+      dashboard: { summary: vi.fn(), topProducts: vi.fn(), sevenDaySales: vi.fn(), lowStock: vi.fn() },
+      salesHistory: { list: vi.fn(), detail: vi.fn() },
+      categories: {
+        list: vi.fn().mockResolvedValue([beverages]),
+        create: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn()
+      },
+      images: { pickProductImage: vi.fn() }
+    } as unknown as Window['api']
+  })
+
   it('submits a valid new product with price converted to integer cents', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
@@ -104,7 +124,8 @@ describe('ProductForm', () => {
       name: 'Chips',
       priceCents: 3500,
       stock: 20,
-      isActive: false
+      isActive: false,
+      categoryId: null
     })
   })
 
@@ -166,5 +187,132 @@ describe('ProductForm', () => {
 
     const dialog = screen.getByRole('dialog', { name: 'Add Product' })
     expect(dialog).toBeInTheDocument()
+  })
+
+  it('shows a category dropdown populated from the categories list', async () => {
+    render(<ProductForm submitting={false} error={null} onSubmit={vi.fn()} onCancel={vi.fn()} />)
+    await waitFor(() => expect(screen.getByRole('option', { name: 'Beverages' })).toBeInTheDocument())
+  })
+
+  it('includes the selected categoryId when submitting a new product', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<ProductForm submitting={false} error={null} onSubmit={onSubmit} onCancel={vi.fn()} />)
+    await waitFor(() => expect(screen.getByRole('option', { name: 'Beverages' })).toBeInTheDocument())
+
+    await user.type(screen.getByLabelText('Barcode'), '111')
+    await user.type(screen.getByLabelText('Name'), 'Coke')
+    await user.type(screen.getByLabelText('Price (Baht)'), '20')
+    await user.type(screen.getByLabelText('Stock'), '5')
+    await user.selectOptions(screen.getByLabelText('Category'), 'Beverages')
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ categoryId: '1' })
+    )
+  })
+
+  it('submits categoryId: undefined when no category is selected (the placeholder option)', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<ProductForm submitting={false} error={null} onSubmit={onSubmit} onCancel={vi.fn()} />)
+    await waitFor(() => expect(screen.getByRole('option', { name: 'Beverages' })).toBeInTheDocument())
+
+    await user.type(screen.getByLabelText('Barcode'), '111')
+    await user.type(screen.getByLabelText('Name'), 'Coke')
+    await user.type(screen.getByLabelText('Price (Baht)'), '20')
+    await user.type(screen.getByLabelText('Stock'), '5')
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ categoryId: undefined })
+    )
+  })
+
+  it('picks an image and shows a preview', async () => {
+    const user = userEvent.setup()
+    ;(window.api.images.pickProductImage as ReturnType<typeof vi.fn>).mockResolvedValue({
+      path: 'C:\\fake\\picked-image.png',
+      previewDataUrl: 'data:image/png;base64,ZmFrZQ=='
+    })
+    render(<ProductForm submitting={false} error={null} onSubmit={vi.fn()} onCancel={vi.fn()} />)
+    await waitFor(() => expect(screen.getByRole('option', { name: 'Beverages' })).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: 'Choose Image' }))
+
+    await waitFor(() =>
+      expect(screen.getByAltText('Product preview')).toHaveAttribute(
+        'src',
+        'data:image/png;base64,ZmFrZQ=='
+      )
+    )
+  })
+
+  it('includes the picked imageSourcePath when submitting', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    ;(window.api.images.pickProductImage as ReturnType<typeof vi.fn>).mockResolvedValue({
+      path: 'C:\\fake\\picked-image.png',
+      previewDataUrl: 'data:image/png;base64,ZmFrZQ=='
+    })
+    render(<ProductForm submitting={false} error={null} onSubmit={onSubmit} onCancel={vi.fn()} />)
+    await waitFor(() => expect(screen.getByRole('option', { name: 'Beverages' })).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: 'Choose Image' }))
+    await waitFor(() => expect(screen.getByAltText('Product preview')).toBeInTheDocument())
+
+    await user.type(screen.getByLabelText('Barcode'), '111')
+    await user.type(screen.getByLabelText('Name'), 'Coke')
+    await user.type(screen.getByLabelText('Price (Baht)'), '20')
+    await user.type(screen.getByLabelText('Stock'), '5')
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ imageSourcePath: 'C:\\fake\\picked-image.png' })
+    )
+  })
+
+  it('does nothing when the image picker is cancelled', async () => {
+    const user = userEvent.setup()
+    ;(window.api.images.pickProductImage as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+    render(<ProductForm submitting={false} error={null} onSubmit={vi.fn()} onCancel={vi.fn()} />)
+    await waitFor(() => expect(screen.getByRole('option', { name: 'Beverages' })).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: 'Choose Image' }))
+
+    expect(screen.queryByAltText('Product preview')).not.toBeInTheDocument()
+  })
+
+  it('shows a Remove Image button when editing a product that already has an image, and removing it sends clearImage: true', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    const withImage: ProductRecord = {
+      id: '1',
+      barcode: '111',
+      name: 'Coke',
+      priceCents: 2000,
+      stock: 10,
+      isActive: true,
+      categoryId: null,
+      imagePath: 'existing.png',
+      createdAt: '',
+      updatedAt: ''
+    }
+    render(
+      <ProductForm
+        initialValues={withImage}
+        submitting={false}
+        error={null}
+        onSubmit={onSubmit}
+        onCancel={vi.fn()}
+      />
+    )
+    await waitFor(() => expect(screen.getByAltText('Product preview')).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: 'Remove Image' }))
+    expect(screen.queryByAltText('Product preview')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ clearImage: true }))
   })
 })
