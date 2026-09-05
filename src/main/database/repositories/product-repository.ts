@@ -61,7 +61,10 @@ function isUniqueConstraintError(err: unknown): boolean {
   return err instanceof Error && err.message.includes('UNIQUE constraint failed')
 }
 
-function validateCategoryId(db: BetterSQLite3Database, categoryId: string | null | undefined): void {
+function validateCategoryId(
+  db: BetterSQLite3Database,
+  categoryId: string | null | undefined
+): void {
   if (categoryId === null || categoryId === undefined) {
     return
   }
@@ -80,8 +83,7 @@ export function getProductByBarcode(
   barcode: string
 ): ProductRecord | undefined {
   return db.select().from(products).where(eq(products.barcode, barcode)).get() as
-    | ProductRecord
-    | undefined
+    ProductRecord | undefined
 }
 
 export function createProduct(db: BetterSQLite3Database, input: CreateProductInput): ProductRecord {
@@ -110,6 +112,11 @@ export function createProduct(db: BetterSQLite3Database, input: CreateProductInp
   try {
     db.insert(products).values(record).run()
   } catch (err) {
+    // The insert never committed — don't leave the just-stored image file
+    // orphaned with nothing in the database referencing it.
+    if (imagePath) {
+      deleteProductImage(imagePath)
+    }
     if (isUniqueConstraintError(err)) {
       throw new DuplicateBarcodeError(record.barcode)
     }
@@ -144,16 +151,19 @@ export function updateProduct(
   validateStock(next.stock)
   validateCategoryId(db, next.categoryId)
 
-  // Image handling is independent of the other fields' undefined-means-
-  // unchanged convention, because it has three distinct states to express
-  // (leave alone / replace / clear), not two:
-  let imagePath = existing.imagePath
+  // Determine the new image path WITHOUT touching the old file yet — the
+  // old file must survive until the DB write actually commits, so a failed
+  // update never leaves the database pointing at a file that's already
+  // gone. `newlyStoredPath` tracks a file THIS call created, so it can be
+  // cleaned up if the DB write fails (it was never referenced by anything
+  // that committed).
+  let newImagePath = existing.imagePath
+  let newlyStoredPath: string | null = null
   if (input.clearImage) {
-    if (existing.imagePath) deleteProductImage(existing.imagePath)
-    imagePath = null
+    newImagePath = null
   } else if (input.imageSourcePath) {
-    if (existing.imagePath) deleteProductImage(existing.imagePath)
-    imagePath = storeProductImage(input.imageSourcePath)
+    newlyStoredPath = storeProductImage(input.imageSourcePath)
+    newImagePath = newlyStoredPath
   }
 
   const barcode = next.barcode.trim()
@@ -169,16 +179,28 @@ export function updateProduct(
         stock: next.stock,
         isActive: next.isActive,
         categoryId: next.categoryId,
-        imagePath,
+        imagePath: newImagePath,
         updatedAt
       })
       .where(eq(products.id, id))
       .run()
   } catch (err) {
+    // The update never committed — clean up a file THIS call just stored
+    // (nothing references it), and leave the pre-existing image file
+    // completely alone, since the database still points at it.
+    if (newlyStoredPath) {
+      deleteProductImage(newlyStoredPath)
+    }
     if (isUniqueConstraintError(err)) {
       throw new DuplicateBarcodeError(barcode)
     }
     throw err
+  }
+
+  // Only now — after the DB write has committed — is it safe to delete the
+  // old image file, since the database no longer references it.
+  if (existing.imagePath && existing.imagePath !== newImagePath) {
+    deleteProductImage(existing.imagePath)
   }
 
   return {
@@ -189,7 +211,7 @@ export function updateProduct(
     stock: next.stock,
     isActive: next.isActive,
     categoryId: next.categoryId,
-    imagePath,
+    imagePath: newImagePath,
     updatedAt
   }
 }

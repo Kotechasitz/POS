@@ -1,11 +1,23 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
 
-const isMock = vi.hoisted(() => ({ dev: true }))
+// This file's image storage must be isolated from product-images.test.ts's
+// dev-mode directory: both would otherwise resolve getProductImagesPath() to
+// the SAME physical path (path.resolve(process.cwd(), 'dev-product-images')),
+// and product-images.test.ts's afterEach does a full recursive rmSync of that
+// directory. Under Vitest's parallel file execution, that wipe can fire while
+// this file still has stored images in flight, causing spurious failures.
+// Mocking is.dev = false and app.getPath('userData') routes this file's
+// image storage through a unique per-test-file temp directory instead.
+const testUserDataDir = path.join(
+  os.tmpdir(),
+  `pos-product-repo-userdata-${Date.now()}-${process.pid}`
+)
+const isMock = vi.hoisted(() => ({ dev: false }))
 vi.mock('@electron-toolkit/utils', () => ({ is: isMock }))
-vi.mock('electron', () => ({ app: { getPath: vi.fn() } }))
+vi.mock('electron', () => ({ app: { getPath: vi.fn(() => testUserDataDir) } }))
 
 import { createDbClient, type DbClient } from '../client'
 import {
@@ -35,6 +47,12 @@ describe('product repository', () => {
   afterEach(() => {
     client.sqlite.close()
     if (fs.existsSync(dbFile)) fs.rmSync(dbFile)
+  })
+
+  afterAll(() => {
+    if (fs.existsSync(testUserDataDir)) {
+      fs.rmSync(testUserDataDir, { recursive: true, force: true })
+    }
   })
 
   it('creates a product with the given fields, defaulting to active', () => {
@@ -79,7 +97,12 @@ describe('product repository', () => {
   })
 
   it('updates a product and changes only the given fields', () => {
-    const created = createProduct(client.db, { barcode: '555', name: 'A', priceCents: 100, stock: 1 })
+    const created = createProduct(client.db, {
+      barcode: '555',
+      name: 'A',
+      priceCents: 100,
+      stock: 1
+    })
     const updated = updateProduct(client.db, created.id, { priceCents: 150, stock: 10 })
 
     expect(updated.priceCents).toBe(150)
@@ -90,17 +113,31 @@ describe('product repository', () => {
 
   it('rejects updating a product to a barcode that already exists on another product', () => {
     createProduct(client.db, { barcode: '666', name: 'A', priceCents: 100, stock: 1 })
-    const second = createProduct(client.db, { barcode: '777', name: 'B', priceCents: 100, stock: 1 })
+    const second = createProduct(client.db, {
+      barcode: '777',
+      name: 'B',
+      priceCents: 100,
+      stock: 1
+    })
 
-    expect(() => updateProduct(client.db, second.id, { barcode: '666' })).toThrow(DuplicateBarcodeError)
+    expect(() => updateProduct(client.db, second.id, { barcode: '666' })).toThrow(
+      DuplicateBarcodeError
+    )
   })
 
   it('throws ProductNotFoundError when updating a nonexistent product', () => {
-    expect(() => updateProduct(client.db, 'does-not-exist', { name: 'X' })).toThrow(ProductNotFoundError)
+    expect(() => updateProduct(client.db, 'does-not-exist', { name: 'X' })).toThrow(
+      ProductNotFoundError
+    )
   })
 
   it('can deactivate a product without deleting it', () => {
-    const created = createProduct(client.db, { barcode: '888', name: 'A', priceCents: 100, stock: 1 })
+    const created = createProduct(client.db, {
+      barcode: '888',
+      name: 'A',
+      priceCents: 100,
+      stock: 1
+    })
     const updated = updateProduct(client.db, created.id, { isActive: false })
 
     expect(updated.isActive).toBe(false)
@@ -108,8 +145,18 @@ describe('product repository', () => {
   })
 
   it('searches products by barcode or name substring', () => {
-    createProduct(client.db, { barcode: '8850001000012', name: 'Coca Cola', priceCents: 2000, stock: 50 })
-    createProduct(client.db, { barcode: '8850002000013', name: 'Water', priceCents: 1000, stock: 50 })
+    createProduct(client.db, {
+      barcode: '8850001000012',
+      name: 'Coca Cola',
+      priceCents: 2000,
+      stock: 50
+    })
+    createProduct(client.db, {
+      barcode: '8850002000013',
+      name: 'Water',
+      priceCents: 1000,
+      stock: 50
+    })
 
     const byName = searchProducts(client.db, 'coca')
     expect(byName).toHaveLength(1)
@@ -152,7 +199,12 @@ describe('product repository', () => {
   })
 
   it('still returns an inactive product by barcode — callers decide whether inactive is sellable', () => {
-    const created = createProduct(client.db, { barcode: '999', name: 'A', priceCents: 100, stock: 1 })
+    const created = createProduct(client.db, {
+      barcode: '999',
+      name: 'A',
+      priceCents: 100,
+      stock: 1
+    })
     updateProduct(client.db, created.id, { isActive: false })
 
     const found = getProductByBarcode(client.db, '999')
@@ -205,14 +257,19 @@ describe('product repository', () => {
       imageSourcePath: sourceFile
     })
 
-    expect(product.imagePath).toMatch(/\.png$/)
     fs.rmSync(sourceFile)
+    expect(product.imagePath).toMatch(/\.png$/)
     if (product.imagePath) deleteProductImage(product.imagePath)
   })
 
   it('updates a product to add a category', () => {
     const category = createCategory(client.db, 'Snacks')
-    const created = createProduct(client.db, { barcode: '222', name: 'A', priceCents: 100, stock: 1 })
+    const created = createProduct(client.db, {
+      barcode: '222',
+      name: 'A',
+      priceCents: 100,
+      stock: 1
+    })
 
     const updated = updateProduct(client.db, created.id, { categoryId: category.id })
 
@@ -275,5 +332,53 @@ describe('product repository', () => {
 
     expect(updated.imagePath).toBeNull()
     expect(fs.existsSync(storedPath)).toBe(false)
+  })
+
+  it('does not delete the old image file when the update fails validation (e.g. duplicate barcode)', () => {
+    const sourceFile = path.join(os.tmpdir(), `pos-product-image-fail-${Date.now()}.png`)
+    fs.writeFileSync(sourceFile, 'image-bytes')
+    const first = createProduct(client.db, {
+      barcode: '666',
+      name: 'A',
+      priceCents: 100,
+      stock: 1,
+      imageSourcePath: sourceFile
+    })
+    fs.rmSync(sourceFile)
+    createProduct(client.db, { barcode: '777', name: 'B', priceCents: 100, stock: 1 })
+    const storedPath = path.join(getProductImagesPath(), first.imagePath as string)
+
+    const otherSourceFile = path.join(os.tmpdir(), `pos-product-image-fail-2-${Date.now()}.png`)
+    fs.writeFileSync(otherSourceFile, 'other-image-bytes')
+    expect(() =>
+      updateProduct(client.db, first.id, { barcode: '777', imageSourcePath: otherSourceFile })
+    ).toThrow(DuplicateBarcodeError)
+    fs.rmSync(otherSourceFile)
+
+    const unchanged = getProductById(client.db, first.id)
+    expect(unchanged?.imagePath).toBe(first.imagePath)
+    expect(fs.existsSync(storedPath)).toBe(true)
+
+    deleteProductImage(first.imagePath as string)
+  })
+
+  it('leaves an existing image untouched when updating an unrelated field', () => {
+    const sourceFile = path.join(os.tmpdir(), `pos-product-image-untouched-${Date.now()}.png`)
+    fs.writeFileSync(sourceFile, 'image-bytes')
+    const created = createProduct(client.db, {
+      barcode: '888',
+      name: 'A',
+      priceCents: 100,
+      stock: 1,
+      imageSourcePath: sourceFile
+    })
+    fs.rmSync(sourceFile)
+
+    const updated = updateProduct(client.db, created.id, { stock: 99 })
+
+    expect(updated.imagePath).toBe(created.imagePath)
+    expect(fs.existsSync(path.join(getProductImagesPath(), created.imagePath as string))).toBe(true)
+
+    deleteProductImage(created.imagePath as string)
   })
 })
