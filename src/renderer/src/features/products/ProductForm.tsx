@@ -6,6 +6,7 @@ import type {
 } from '../../../../shared/product'
 import type { CategoryRecord } from '../../../../shared/category'
 import { Money } from '../../../../shared/money'
+import { toUserMessage } from '../../lib/ipcError'
 
 export interface ProductFormProps {
   initialValues?: ProductRecord
@@ -61,11 +62,16 @@ function ProductForm({
   }
 
   async function handlePickImage(): Promise<void> {
-    const picked = await window.api.images.pickProductImage()
-    if (picked) {
-      setImageSourcePath(picked.path)
-      setImagePreviewUrl(picked.previewDataUrl)
-      setImageCleared(false)
+    try {
+      const picked = await window.api.images.pickProductImage()
+      if (picked) {
+        setImageSourcePath(picked.path)
+        setImagePreviewUrl(picked.previewDataUrl)
+        setImageCleared(false)
+        setFormError(null)
+      }
+    } catch (err) {
+      setFormError(toUserMessage(err))
     }
   }
 

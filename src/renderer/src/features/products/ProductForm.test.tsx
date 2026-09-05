@@ -411,6 +411,38 @@ describe('ProductForm', () => {
     expect(screen.queryByAltText('Product preview')).not.toBeInTheDocument()
   })
 
+  it('shows a clean error message when picking an image fails, instead of failing silently', async () => {
+    const user = userEvent.setup()
+    ;(window.api.images.pickProductImage as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error(
+        "Error invoking remote method 'images:pickProductImage': Could not read the selected image file. It may have moved or become unavailable — try picking it again."
+      )
+    )
+    render(
+      <ProductForm
+        submitting={false}
+        error={null}
+        categories={[beverages]}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    )
+    await waitFor(() =>
+      expect(screen.getByRole('option', { name: 'Beverages' })).toBeInTheDocument()
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Choose Image' }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Could not read the selected image file. It may have moved or become unavailable — try picking it again.'
+      )
+    )
+    const alertText = screen.getByRole('alert').textContent ?? ''
+    expect(alertText).not.toContain('Error invoking remote method')
+    expect(screen.queryByAltText('Product preview')).not.toBeInTheDocument()
+  })
+
   it('shows a Remove Image button when editing a product that already has an image, and removing it sends clearImage: true', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
