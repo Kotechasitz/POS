@@ -17,6 +17,16 @@ const list: SaleListItem[] = [
   }
 ]
 
+const voidedList: SaleListItem = {
+  id: 'sale-2',
+  billNumber: 2,
+  totalCents: 1000,
+  createdAt: '2026-09-04T09:00:00.000Z',
+  itemCount: 1,
+  status: 'VOID',
+  paymentMethod: 'QR'
+}
+
 const detail: SaleRecord = {
   id: 'sale-1',
   totalCents: 4000,
@@ -51,7 +61,9 @@ describe('SalesHistoryPage', () => {
       },
       salesHistory: {
         list: vi.fn().mockResolvedValue(list),
-        detail: vi.fn().mockResolvedValue(detail)
+        detail: vi.fn().mockResolvedValue(detail),
+        void: vi.fn(),
+        exportCsv: vi.fn()
       }
     } as unknown as Window['api']
   })
@@ -105,5 +117,150 @@ describe('SalesHistoryPage', () => {
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Something broke'))
     expect(screen.getByRole('alert')).not.toHaveTextContent('Error invoking remote method')
+  })
+
+  it('shows Payment Method and Status columns', async () => {
+    render(<SalesHistoryPage />)
+    await waitFor(() => expect(screen.getByText('#1')).toBeInTheDocument())
+
+    expect(screen.getByRole('cell', { name: 'CASH' })).toBeInTheDocument()
+    expect(screen.getByRole('cell', { name: 'Completed' })).toBeInTheDocument()
+  })
+
+  it('filters by payment method', async () => {
+    const user = userEvent.setup()
+    ;(window.api.salesHistory.list as ReturnType<typeof vi.fn>).mockResolvedValue([
+      list[0],
+      voidedList
+    ])
+    render(<SalesHistoryPage />)
+    await waitFor(() => expect(screen.getByText('#1')).toBeInTheDocument())
+    expect(screen.getByText('#2')).toBeInTheDocument()
+
+    await user.selectOptions(screen.getByLabelText('Filter by payment method'), 'QR')
+
+    expect(screen.queryByText('#1')).not.toBeInTheDocument()
+    expect(screen.getByText('#2')).toBeInTheDocument()
+  })
+
+  it('filters by status', async () => {
+    const user = userEvent.setup()
+    ;(window.api.salesHistory.list as ReturnType<typeof vi.fn>).mockResolvedValue([
+      list[0],
+      voidedList
+    ])
+    render(<SalesHistoryPage />)
+    await waitFor(() => expect(screen.getByText('#1')).toBeInTheDocument())
+
+    await user.selectOptions(screen.getByLabelText('Filter by status'), 'VOID')
+
+    expect(screen.queryByText('#1')).not.toBeInTheDocument()
+    expect(screen.getByText('#2')).toBeInTheDocument()
+  })
+
+  it('filters by date range', async () => {
+    const user = userEvent.setup()
+    ;(window.api.salesHistory.list as ReturnType<typeof vi.fn>).mockResolvedValue([
+      list[0],
+      voidedList
+    ])
+    render(<SalesHistoryPage />)
+    await waitFor(() => expect(screen.getByText('#1')).toBeInTheDocument())
+    // list[0].createdAt is 2026-09-03; voidedList.createdAt is 2026-09-04.
+    // A From date of 2026-09-04 must exclude the earlier sale and include
+    // the one exactly on the boundary (the filter is inclusive).
+    await user.type(screen.getByLabelText('From date'), '2026-09-04')
+
+    expect(screen.queryByText('#1')).not.toBeInTheDocument()
+    expect(screen.getByText('#2')).toBeInTheDocument()
+  })
+
+  it('shows a Void button only on Completed rows', async () => {
+    ;(window.api.salesHistory.list as ReturnType<typeof vi.fn>).mockResolvedValue([
+      list[0],
+      voidedList
+    ])
+    render(<SalesHistoryPage />)
+    await waitFor(() => expect(screen.getByText('#1')).toBeInTheDocument())
+
+    expect(screen.getAllByRole('button', { name: 'Void' })).toHaveLength(1)
+  })
+
+  it('voids a sale through the reason-then-confirm flow and reloads the list', async () => {
+    const user = userEvent.setup()
+    const voided = {
+      ...detail,
+      status: 'VOID',
+      voidReason: 'Wrong order',
+      voidedAt: '2026-09-06T12:00:00.000Z'
+    }
+    ;(window.api.salesHistory.void as ReturnType<typeof vi.fn>).mockResolvedValue(voided)
+    render(<SalesHistoryPage />)
+    await waitFor(() => expect(screen.getByText('#1')).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: 'Void' }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+    await user.type(screen.getByLabelText('Reason'), 'Wrong order')
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
+    await user.click(screen.getByRole('button', { name: 'Void Sale' }))
+
+    await waitFor(() =>
+      expect(window.api.salesHistory.void).toHaveBeenCalledWith('sale-1', 'Wrong order')
+    )
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(window.api.salesHistory.list).toHaveBeenCalledTimes(2)
+  })
+
+  it('shows a clean error in the void modal when voiding fails, without closing it', async () => {
+    const user = userEvent.setup()
+    ;(window.api.salesHistory.void as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error(
+        'Error invoking remote method \'salesHistory:void\': SaleAlreadyVoidError: Sale "sale-1" has already been voided'
+      )
+    )
+    render(<SalesHistoryPage />)
+    await waitFor(() => expect(screen.getByText('#1')).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: 'Void' }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+    await user.type(screen.getByLabelText('Reason'), 'Wrong order')
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
+    await user.click(screen.getByRole('button', { name: 'Void Sale' }))
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('already been voided'))
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('closes the void modal without voiding when Cancel is clicked', async () => {
+    const user = userEvent.setup()
+    render(<SalesHistoryPage />)
+    await waitFor(() => expect(screen.getByText('#1')).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: 'Void' }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(window.api.salesHistory.void).not.toHaveBeenCalled()
+  })
+
+  it('exports the currently-filtered list as CSV', async () => {
+    const user = userEvent.setup()
+    ;(window.api.salesHistory.exportCsv as ReturnType<typeof vi.fn>).mockResolvedValue({
+      canceled: false
+    })
+    ;(window.api.salesHistory.list as ReturnType<typeof vi.fn>).mockResolvedValue([
+      list[0],
+      voidedList
+    ])
+    render(<SalesHistoryPage />)
+    await waitFor(() => expect(screen.getByText('#1')).toBeInTheDocument())
+
+    await user.selectOptions(screen.getByLabelText('Filter by status'), 'VOID')
+    await user.click(screen.getByRole('button', { name: 'Export' }))
+
+    await waitFor(() =>
+      expect(window.api.salesHistory.exportCsv).toHaveBeenCalledWith([voidedList])
+    )
   })
 })

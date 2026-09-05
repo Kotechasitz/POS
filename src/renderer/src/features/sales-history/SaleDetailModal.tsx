@@ -36,6 +36,12 @@ function SaleDetailModal({ sale, onClose }: SaleDetailModalProps): React.JSX.Ele
         <h2 id="sale-detail-title">Sale Detail</h2>
         <p className="sale-detail-meta">{formatDateTime(sale.createdAt)}</p>
 
+        {sale.status === 'VOID' && sale.voidReason && (
+          <p role="alert" className="alert alert-danger">
+            {`Voided ${sale.voidedAt ? formatDateTime(sale.voidedAt) : ''} — ${sale.voidReason}`}
+          </p>
+        )}
+
         <table className="products-table">
           <thead>
             <tr>

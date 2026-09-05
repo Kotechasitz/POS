@@ -37,6 +37,22 @@
   gap: var(--space-3);
 }
 
+.sales-history-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.sales-history-toolbar .field {
+  gap: 4px;
+}
+
+.void-reason-preview {
+  color: var(--color-ink-muted);
+  font-size: 14px;
+}
+
 .search-field {
   position: relative;
   width: 280px;
@@ -116,6 +132,15 @@
 
 .btn-secondary:hover:not(:disabled) {
   background: var(--color-surface-sunken);
+}
+
+.btn-danger {
+  background: var(--color-danger);
+  color: #fff;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--color-danger-hover);
 }
 
 /* Also style unclassed inputs/buttons inside the search field and modal
@@ -225,6 +250,16 @@
 .badge-inactive {
   background: var(--color-surface-sunken);
   color: var(--color-ink-faint);
+}
+
+.badge-completed {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.badge-void {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
 }
 
 /* ---- Empty / loading states ---- */

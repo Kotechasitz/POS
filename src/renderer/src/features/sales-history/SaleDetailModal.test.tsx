@@ -71,4 +71,22 @@ describe('SaleDetailModal', () => {
 
     expect(onClose).not.toHaveBeenCalled()
   })
+
+  it('shows the void reason and timestamp for a voided sale', () => {
+    const voidedSale: SaleRecord = {
+      ...sale,
+      status: 'VOID',
+      voidReason: 'Customer changed their mind',
+      voidedAt: '2026-09-06T12:00:00.000Z'
+    }
+    render(<SaleDetailModal sale={voidedSale} onClose={vi.fn()} />)
+
+    expect(screen.getByText(/Customer changed their mind/)).toBeInTheDocument()
+  })
+
+  it('shows no void information for a completed sale', () => {
+    render(<SaleDetailModal sale={sale} onClose={vi.fn()} />)
+
+    expect(screen.queryByText(/Voided/)).not.toBeInTheDocument()
+  })
 })
