@@ -61,4 +61,20 @@ describe('CartTable', () => {
     await user.click(screen.getAllByRole('button', { name: 'Remove' })[0])
     expect(onRemove).toHaveBeenCalledWith('1')
   })
+
+  it('disables every increment/decrement/remove button when disabled is true', () => {
+    render(
+      <CartTable
+        items={items}
+        onIncrement={vi.fn()}
+        onDecrement={vi.fn()}
+        onRemove={vi.fn()}
+        disabled
+      />
+    )
+
+    expect(screen.getByLabelText('Increase quantity of Coke')).toBeDisabled()
+    expect(screen.getByLabelText('Decrease quantity of Coke')).toBeDisabled()
+    expect(screen.getAllByRole('button', { name: 'Remove' })[0]).toBeDisabled()
+  })
 })

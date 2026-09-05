@@ -6,7 +6,7 @@ import { toUserMessage } from '../../lib/ipcError'
 export interface UseCompleteSaleResult {
   completing: boolean
   error: string | null
-  completeSale: (paymentMethod: PaymentMethod) => Promise<SaleRecord | null>
+  completeSale: (paymentMethod: PaymentMethod, discountCents: number) => Promise<SaleRecord | null>
   clearError: () => void
 }
 
@@ -15,7 +15,7 @@ export function useCompleteSale(): UseCompleteSaleResult {
   const [error, setError] = useState<string | null>(null)
 
   const completeSale = useCallback(
-    async (paymentMethod: PaymentMethod): Promise<SaleRecord | null> => {
+    async (paymentMethod: PaymentMethod, discountCents: number): Promise<SaleRecord | null> => {
       const items = useCartStore.getState().items
       if (items.length === 0) {
         return null
@@ -31,9 +31,7 @@ export function useCompleteSale(): UseCompleteSaleResult {
       setCompleting(true)
       setError(null)
       try {
-        // discountCents is always 0 here — Phase 9 adds the actual discount
-        // input and threads a real value through this same call.
-        const sale = await window.api.sales.complete(lines, paymentMethod, 0)
+        const sale = await window.api.sales.complete(lines, paymentMethod, discountCents)
         useCartStore.getState().clear()
         return sale
       } catch (err) {

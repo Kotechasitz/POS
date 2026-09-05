@@ -50,7 +50,7 @@ describe('useCompleteSale', () => {
 
     let returned: SaleRecord | null = null
     await act(async () => {
-      returned = await result.current.completeSale('CASH')
+      returned = await result.current.completeSale('CASH', 0)
     })
 
     expect(window.api.sales.complete).toHaveBeenCalledWith(
@@ -63,12 +63,38 @@ describe('useCompleteSale', () => {
     expect(result.current.error).toBeNull()
   })
 
+  it('sends a nonzero discount through to window.api.sales.complete', async () => {
+    useCartStore.setState({ items: [coke] })
+    const sale: SaleRecord = {
+      id: 'sale-1',
+      totalCents: 3500,
+      status: 'COMPLETED',
+      paymentMethod: 'CASH',
+      discountCents: 500,
+      createdAt: '2026-09-03T00:00:00.000Z',
+      items: []
+    }
+    ;(window.api.sales.complete as ReturnType<typeof vi.fn>).mockResolvedValue(sale)
+
+    const { result } = renderHook(() => useCompleteSale())
+
+    await act(async () => {
+      await result.current.completeSale('CASH', 500)
+    })
+
+    expect(window.api.sales.complete).toHaveBeenCalledWith(
+      [{ productId: '1', productName: 'Coke', unitPriceCents: 2000, quantity: 2 }],
+      'CASH',
+      500
+    )
+  })
+
   it('does nothing and returns null when the cart is empty', async () => {
     const { result } = renderHook(() => useCompleteSale())
 
     let returned: SaleRecord | null = null
     await act(async () => {
-      returned = await result.current.completeSale('CASH')
+      returned = await result.current.completeSale('CASH', 0)
     })
 
     expect(returned).toBeNull()
@@ -86,7 +112,7 @@ describe('useCompleteSale', () => {
     const { result } = renderHook(() => useCompleteSale())
 
     await act(async () => {
-      await result.current.completeSale('CASH')
+      await result.current.completeSale('CASH', 0)
     })
 
     await waitFor(() =>
@@ -108,7 +134,7 @@ describe('useCompleteSale', () => {
 
     let callPromise!: Promise<SaleRecord | null>
     act(() => {
-      callPromise = result.current.completeSale('CASH')
+      callPromise = result.current.completeSale('CASH', 0)
     })
 
     await waitFor(() => expect(result.current.completing).toBe(true))
@@ -140,7 +166,7 @@ describe('useCompleteSale', () => {
     const { result } = renderHook(() => useCompleteSale())
 
     await act(async () => {
-      await result.current.completeSale('CASH')
+      await result.current.completeSale('CASH', 0)
     })
 
     await waitFor(() => expect(result.current.error).not.toBeNull())

@@ -525,6 +525,28 @@
   color: var(--color-primary);
 }
 
+.pos-summary {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-4);
+}
+
+.pos-summary-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 14px;
+  color: var(--color-ink-muted);
+}
+
+.pos-total-row {
+  align-items: flex-end;
+}
+
+.pos-discount-field {
+  max-width: 140px;
+}
+
 .scan-field {
   display: flex;
   flex-direction: column;

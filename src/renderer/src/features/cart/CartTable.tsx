@@ -6,6 +6,7 @@ export interface CartTableProps {
   onIncrement: (productId: string) => void
   onDecrement: (productId: string) => void
   onRemove: (productId: string) => void
+  disabled?: boolean
 }
 
 function CartIcon(): React.JSX.Element {
@@ -24,7 +25,13 @@ function CartIcon(): React.JSX.Element {
   )
 }
 
-function CartTable({ items, onIncrement, onDecrement, onRemove }: CartTableProps): React.JSX.Element {
+function CartTable({
+  items,
+  onIncrement,
+  onDecrement,
+  onRemove,
+  disabled
+}: CartTableProps): React.JSX.Element {
   if (items.length === 0) {
     return (
       <div className="empty-state">
@@ -59,7 +66,7 @@ function CartTable({ items, onIncrement, onDecrement, onRemove }: CartTableProps
                   type="button"
                   className="btn btn-secondary btn-icon"
                   onClick={() => onDecrement(item.productId)}
-                  disabled={item.quantity <= 1}
+                  disabled={disabled || item.quantity <= 1}
                   aria-label={`Decrease quantity of ${item.name}`}
                 >
                   −
@@ -69,7 +76,7 @@ function CartTable({ items, onIncrement, onDecrement, onRemove }: CartTableProps
                   type="button"
                   className="btn btn-secondary btn-icon"
                   onClick={() => onIncrement(item.productId)}
-                  disabled={item.quantity >= item.stock}
+                  disabled={disabled || item.quantity >= item.stock}
                   aria-label={`Increase quantity of ${item.name}`}
                 >
                   +
@@ -78,7 +85,12 @@ function CartTable({ items, onIncrement, onDecrement, onRemove }: CartTableProps
             </td>
             <td className="cell-price">{Money.fromCents(lineTotalCents(item)).format()}</td>
             <td className="cell-actions">
-              <button type="button" className="btn btn-secondary" onClick={() => onRemove(item.productId)}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => onRemove(item.productId)}
+                disabled={disabled}
+              >
                 Remove
               </button>
             </td>

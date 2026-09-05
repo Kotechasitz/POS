@@ -380,6 +380,89 @@ describe('PosPage', () => {
     expect(screen.getByText('No held carts.')).toBeInTheDocument()
   })
 
+  it('shows a Subtotal row and reduces the Total by the entered discount', async () => {
+    const user = userEvent.setup()
+    render(<PosPage />)
+
+    await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
+    await waitFor(() => expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument())
+
+    expect(screen.getByLabelText('Subtotal')).toHaveTextContent('฿20.00')
+    expect(screen.getByLabelText('Cart total')).toHaveTextContent('฿20.00')
+
+    await user.type(screen.getByLabelText('Discount (Baht)'), '5')
+
+    expect(screen.getByLabelText('Cart total')).toHaveTextContent('฿15.00')
+  })
+
+  it('rejects a discount larger than the subtotal without opening the payment method modal', async () => {
+    const user = userEvent.setup()
+    render(<PosPage />)
+
+    await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
+    await waitFor(() => expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument())
+    await user.type(screen.getByLabelText('Discount (Baht)'), '999')
+
+    await user.click(screen.getByRole('button', { name: 'Finish Sale' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Discount cannot exceed the subtotal')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('sends the entered discount to completeSale when a payment method is picked', async () => {
+    const user = userEvent.setup()
+    const sale: SaleRecord = {
+      id: 'sale-1',
+      totalCents: 1500,
+      status: 'COMPLETED',
+      paymentMethod: 'CASH',
+      discountCents: 500,
+      createdAt: '2026-09-03T00:00:00.000Z',
+      items: []
+    }
+    ;(window.api.sales.complete as ReturnType<typeof vi.fn>).mockResolvedValue(sale)
+
+    render(<PosPage />)
+
+    await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
+    await waitFor(() => expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument())
+    await user.type(screen.getByLabelText('Discount (Baht)'), '5')
+
+    await user.click(screen.getByRole('button', { name: 'Finish Sale' }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: 'Cash' }))
+
+    expect(window.api.sales.complete).toHaveBeenCalledWith(
+      [{ productId: '1', productName: 'Coke', unitPriceCents: 2000, quantity: 1 }],
+      'CASH',
+      500
+    )
+  })
+
+  it('disables the discount field and every cart-editing control while the payment method modal is open', async () => {
+    const user = userEvent.setup()
+    render(<PosPage />)
+
+    await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
+    await waitFor(() => expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: 'Finish Sale' }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+
+    expect(screen.getByLabelText('Discount (Baht)')).toBeDisabled()
+    // Anchored regex — plain /Coke/ would also match the stepper buttons'
+    // "Increase/Decrease quantity of Coke" labels below, once the cart has
+    // that item; the grid tile's accessible name is the only one that
+    // starts with "Coke" (name span renders before the price span).
+    expect(screen.getByRole('button', { name: /^Coke/ })).toBeDisabled()
+    expect(screen.getByLabelText('Increase quantity of Coke')).toBeDisabled()
+    expect(screen.getByLabelText('Decrease quantity of Coke')).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Remove' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Clear Cart' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Hold' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Held Carts (0)' })).toBeDisabled()
+  })
+
   it('closes the Hold Cart modal without holding when Cancel is clicked', async () => {
     const user = userEvent.setup()
     render(<PosPage />)

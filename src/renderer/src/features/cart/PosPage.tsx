@@ -39,6 +39,8 @@ function PosPage(): React.JSX.Element {
   const [showHoldModal, setShowHoldModal] = useState(false)
   const [showHeldCartsModal, setShowHeldCartsModal] = useState(false)
   const [heldCartsError, setHeldCartsError] = useState<string | null>(null)
+  const [discountBaht, setDiscountBaht] = useState('')
+  const [discountError, setDiscountError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -78,9 +80,23 @@ function PosPage(): React.JSX.Element {
   function handleClearCart(): void {
     clear()
     clearSaleError()
+    setDiscountBaht('')
+    setDiscountError(null)
   }
 
   function handleFinishSaleClick(): void {
+    if (discountBaht.trim().length > 0) {
+      const discount = Money.parseBaht(discountBaht)
+      if (!discount) {
+        setDiscountError('Discount must be a non-negative number')
+        return
+      }
+      if (discount.cents > subtotalCents) {
+        setDiscountError('Discount cannot exceed the subtotal')
+        return
+      }
+    }
+    setDiscountError(null)
     setShowPaymentModal(true)
   }
 
@@ -89,10 +105,12 @@ function PosPage(): React.JSX.Element {
   }
 
   async function handleSelectPaymentMethod(method: PaymentMethod): Promise<void> {
-    const sale = await completeSale(method)
+    const discountCents = discountBaht.trim().length > 0 ? (Money.parseBaht(discountBaht)?.cents ?? 0) : 0
+    const sale = await completeSale(method, discountCents)
     setShowPaymentModal(false)
     if (sale) {
       setSuccessMessage(`Sale completed — ${Money.fromCents(sale.totalCents).format()}`)
+      setDiscountBaht('')
     }
   }
 
@@ -141,12 +159,41 @@ function PosPage(): React.JSX.Element {
     setShowHeldCartsModal(false)
   }
 
+  const subtotalCents = cartTotalCents(items)
+  const parsedDiscount = discountBaht.trim().length > 0 ? Money.parseBaht(discountBaht) : Money.fromCents(0)
+  // Clamp for display only — the actual reject-if-too-large validation runs
+  // on Finish Sale click, below. This just keeps the live Total display
+  // from ever showing a negative number while the cashier is still typing.
+  const displayDiscountCents = parsedDiscount ? Math.min(parsedDiscount.cents, subtotalCents) : 0
+  const totalCents = subtotalCents - displayDiscountCents
+
   return (
     <div className="products-page">
       <div className="products-header">
         <h1>POS</h1>
-        <div className="pos-total" aria-label="Cart total">
-          {Money.fromCents(cartTotalCents(items)).format()}
+        <div className="pos-summary">
+          <div className="pos-summary-row">
+            <span>Subtotal</span>
+            <span aria-label="Subtotal">{Money.fromCents(subtotalCents).format()}</span>
+          </div>
+          <div className="field pos-discount-field">
+            <label htmlFor="pos-discount">Discount (Baht)</label>
+            <input
+              id="pos-discount"
+              type="number"
+              step="0.01"
+              min="0"
+              value={discountBaht}
+              onChange={(e) => setDiscountBaht(e.target.value)}
+              disabled={showPaymentModal}
+            />
+          </div>
+          <div className="pos-summary-row pos-total-row">
+            <span>Total</span>
+            <span className="pos-total" aria-label="Cart total">
+              {Money.fromCents(totalCents).format()}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -170,11 +217,12 @@ function PosPage(): React.JSX.Element {
         selectedCategoryId={selectedCategoryId}
         onSelectCategory={setSelectedCategoryId}
         onSelectProduct={handleSelectProductTile}
+        disabled={showPaymentModal}
       />
 
-      {(error || saleError) && !successMessage && (
+      {(error || saleError || discountError) && !successMessage && (
         <p role="alert" className="alert alert-danger">
-          {error ?? saleError}
+          {error ?? saleError ?? discountError}
         </p>
       )}
 
@@ -190,6 +238,7 @@ function PosPage(): React.JSX.Element {
           onIncrement={incrementItem}
           onDecrement={decrementItem}
           onRemove={removeItem}
+          disabled={showPaymentModal}
         />
       </div>
 
@@ -199,19 +248,24 @@ function PosPage(): React.JSX.Element {
             type="button"
             className="btn btn-secondary"
             onClick={handleHoldClick}
-            disabled={items.length === 0 || completing}
+            disabled={items.length === 0 || completing || showPaymentModal}
           >
             Hold
           </button>
         )}
-        <button type="button" className="btn btn-secondary" onClick={handleShowHeldCarts}>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={handleShowHeldCarts}
+          disabled={showPaymentModal}
+        >
           {`Held Carts (${heldCarts.length})`}
         </button>
         <button
           type="button"
           className="btn btn-secondary"
           onClick={handleClearCart}
-          disabled={items.length === 0 || completing}
+          disabled={items.length === 0 || completing || showPaymentModal}
         >
           Clear Cart
         </button>
