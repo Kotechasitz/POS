@@ -64,7 +64,9 @@ describe('category repository', () => {
   it('rejects renaming a category to a name that already exists', () => {
     createCategory(client.db, 'Beverages')
     const second = createCategory(client.db, 'Snacks')
-    expect(() => updateCategory(client.db, second.id, 'Beverages')).toThrow(DuplicateCategoryNameError)
+    expect(() => updateCategory(client.db, second.id, 'Beverages')).toThrow(
+      DuplicateCategoryNameError
+    )
   })
 
   it('throws CategoryNotFoundError when updating a nonexistent category', () => {
@@ -77,7 +79,7 @@ describe('category repository', () => {
     expect(listCategories(client.db)).toHaveLength(0)
   })
 
-  it('rejects deleting a category that still has products assigned', () => {
+  it('rejects deleting a category that still has products assigned, reporting the exact count', () => {
     const category = createCategory(client.db, 'Beverages')
     createProduct(client.db, {
       barcode: '111',
@@ -86,7 +88,18 @@ describe('category repository', () => {
       stock: 10,
       categoryId: category.id
     })
+    createProduct(client.db, {
+      barcode: '222',
+      name: 'Water',
+      priceCents: 1000,
+      stock: 5,
+      categoryId: category.id
+    })
+
     expect(() => deleteCategory(client.db, category.id)).toThrow(CategoryInUseError)
+    expect(() => deleteCategory(client.db, category.id)).toThrow(
+      'Cannot delete "Beverages": 2 product(s) are still assigned to it'
+    )
     expect(listCategories(client.db)).toHaveLength(1)
   })
 

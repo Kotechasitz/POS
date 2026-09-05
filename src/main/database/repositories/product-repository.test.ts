@@ -291,6 +291,32 @@ describe('product repository', () => {
     expect(after).toEqual(before)
   })
 
+  it('does not re-validate categoryId when an update leaves it untouched', () => {
+    const category = createCategory(client.db, 'Snacks')
+    const created = createProduct(client.db, {
+      barcode: 'aaa',
+      name: 'A',
+      priceCents: 100,
+      stock: 1,
+      categoryId: category.id
+    })
+
+    const selectSpy = vi.spyOn(client.db, 'select')
+    updateProduct(client.db, created.id, { stock: 5 })
+    const selectCallsWithoutCategoryChange = selectSpy.mock.calls.length
+    selectSpy.mockClear()
+
+    updateProduct(client.db, created.id, { categoryId: category.id })
+    const selectCallsWithCategoryChange = selectSpy.mock.calls.length
+    selectSpy.mockRestore()
+
+    // An update that doesn't touch categoryId at all should issue fewer
+    // SELECTs than one that does (validateCategoryId's extra existence
+    // check), since the field's validity is already guaranteed by the
+    // categories<->products foreign key plus deleteCategory's in-use guard.
+    expect(selectCallsWithoutCategoryChange).toBeLessThan(selectCallsWithCategoryChange)
+  })
+
   it('updates a product to add a category', () => {
     const category = createCategory(client.db, 'Snacks')
     const created = createProduct(client.db, {

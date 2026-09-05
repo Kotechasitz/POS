@@ -42,6 +42,14 @@ function ProductForm({
 
   const isEditing = initialValues !== undefined
 
+  // Self-heal against a category that's since been deleted (e.g. via
+  // Category Manager while this form stays open) instead of silently
+  // submitting a dead id — the same effectiveCategoryFilter pattern
+  // ProductsPage already uses for its filter dropdown.
+  const effectiveCategoryId = categories.some((category) => category.id === categoryId)
+    ? categoryId
+    : ''
+
   // Let the shop owner dismiss the dialog with Escape, matching how every
   // other dialog on their desktop behaves — but not mid-save, so an
   // in-flight create/update can't be abandoned by an accidental keypress.
@@ -116,7 +124,7 @@ function ProductForm({
         priceCents,
         stock: stockValue,
         isActive,
-        categoryId: categoryId || null,
+        categoryId: effectiveCategoryId || null,
         ...(imageSourcePath ? { imageSourcePath } : {}),
         ...(imageCleared ? { clearImage: true } : {})
       })
@@ -126,7 +134,7 @@ function ProductForm({
         name: name.trim(),
         priceCents,
         stock: stockValue,
-        categoryId: categoryId || undefined,
+        categoryId: effectiveCategoryId || undefined,
         ...(imageSourcePath ? { imageSourcePath } : {})
       })
     }
@@ -196,7 +204,7 @@ function ProductForm({
             <label htmlFor="product-category">Category</label>
             <select
               id="product-category"
-              value={categoryId}
+              value={effectiveCategoryId}
               onChange={(e) => setCategoryId(e.target.value)}
               disabled={submitting}
             >

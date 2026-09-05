@@ -4,6 +4,7 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import { products, categories } from '../schema'
 import type { ProductRecord, CreateProductInput, UpdateProductInput } from '../../../shared/product'
 import { storeProductImage, deleteProductImage } from '../../storage/product-images'
+import { isUniqueConstraintError } from '../db-errors'
 
 export class ProductValidationError extends Error {
   constructor(message: string) {
@@ -55,10 +56,6 @@ function validateStock(stock: number): void {
   if (!Number.isInteger(stock) || stock < 0) {
     throw new ProductValidationError('Stock must be a non-negative integer')
   }
-}
-
-function isUniqueConstraintError(err: unknown): boolean {
-  return err instanceof Error && err.message.includes('UNIQUE constraint failed')
 }
 
 function validateCategoryId(
@@ -149,7 +146,16 @@ export function updateProduct(
   validateName(next.name)
   validatePriceCents(next.priceCents)
   validateStock(next.stock)
-  validateCategoryId(db, next.categoryId)
+  // Only re-check categoryId when this call is actually changing it — an
+  // already-persisted product's existing categoryId is guaranteed valid by
+  // both the categories<->products foreign key (foreign_keys = ON) and
+  // deleteCategory's in-use guard, which refuses to delete a category still
+  // assigned to any product. Re-validating it on every update, including
+  // ones that only touch isActive or stock, would be a redundant SELECT for
+  // a condition the call graph already rules out.
+  if (input.categoryId !== undefined) {
+    validateCategoryId(db, next.categoryId)
+  }
 
   // Determine the new image path WITHOUT touching the old file yet — the
   // old file must survive until the DB write actually commits, so a failed

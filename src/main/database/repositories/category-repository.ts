@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto'
-import { eq } from 'drizzle-orm'
+import { eq, count } from 'drizzle-orm'
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import { categories, products } from '../schema'
 import type { CategoryRecord } from '../../../shared/category'
+import { isUniqueConstraintError } from '../db-errors'
 
 export class CategoryValidationError extends Error {
   constructor(message: string) {
@@ -36,10 +37,6 @@ function validateName(name: string): void {
   if (!name || name.trim().length === 0) {
     throw new CategoryValidationError('Category name is required')
   }
-}
-
-function isUniqueConstraintError(err: unknown): boolean {
-  return err instanceof Error && err.message.includes('UNIQUE constraint failed')
 }
 
 export function listCategories(db: BetterSQLite3Database): CategoryRecord[] {
@@ -94,9 +91,13 @@ export function deleteCategory(db: BetterSQLite3Database, id: string): void {
   if (!existing) {
     throw new CategoryNotFoundError(id)
   }
-  const assignedProducts = db.select().from(products).where(eq(products.categoryId, id)).all()
-  if (assignedProducts.length > 0) {
-    throw new CategoryInUseError(existing.name, assignedProducts.length)
+  const [{ value: assignedCount }] = db
+    .select({ value: count() })
+    .from(products)
+    .where(eq(products.categoryId, id))
+    .all()
+  if (assignedCount > 0) {
+    throw new CategoryInUseError(existing.name, assignedCount)
   }
   db.delete(categories).where(eq(categories.id, id)).run()
 }

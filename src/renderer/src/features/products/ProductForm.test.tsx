@@ -328,6 +328,55 @@ describe('ProductForm', () => {
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ categoryId: undefined }))
   })
 
+  it('self-heals to "No category" if the selected category is deleted while the form is still open', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    const existing: ProductRecord = {
+      id: '1',
+      barcode: '111',
+      name: 'Coke',
+      priceCents: 2000,
+      stock: 10,
+      isActive: true,
+      categoryId: beverages.id,
+      imagePath: null,
+      createdAt: '',
+      updatedAt: ''
+    }
+
+    const { rerender } = render(
+      <ProductForm
+        initialValues={existing}
+        submitting={false}
+        error={null}
+        categories={[beverages]}
+        onSubmit={onSubmit}
+        onCancel={vi.fn()}
+      />
+    )
+    expect(screen.getByLabelText('Category')).toHaveValue(beverages.id)
+
+    // Simulate Beverages being deleted elsewhere (e.g. via Category Manager)
+    // while this form is still open — ProductsPage passes the same live
+    // `categories` array down to both.
+    rerender(
+      <ProductForm
+        initialValues={existing}
+        submitting={false}
+        error={null}
+        categories={[]}
+        onSubmit={onSubmit}
+        onCancel={vi.fn()}
+      />
+    )
+
+    expect(screen.getByLabelText('Category')).toHaveValue('')
+
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ categoryId: null }))
+  })
+
   it('picks an image and shows a preview', async () => {
     const user = userEvent.setup()
     ;(window.api.images.pickProductImage as ReturnType<typeof vi.fn>).mockResolvedValue({
