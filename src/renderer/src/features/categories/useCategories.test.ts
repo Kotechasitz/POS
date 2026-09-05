@@ -74,4 +74,20 @@ describe('useCategories', () => {
     expect(window.api.categories.delete).toHaveBeenCalledWith('1')
     expect(result.current.categories).toEqual([])
   })
+
+  it('updateCategory renames a category and reloads the list', async () => {
+    const { result } = renderHook(() => useCategories())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    const renamed: CategoryRecord = { id: '1', name: 'Drinks', createdAt: '', updatedAt: '' }
+    ;(window.api.categories.update as ReturnType<typeof vi.fn>).mockResolvedValue(renamed)
+    ;(window.api.categories.list as ReturnType<typeof vi.fn>).mockResolvedValue([renamed])
+
+    await act(async () => {
+      await result.current.updateCategory('1', 'Drinks')
+    })
+
+    expect(window.api.categories.update).toHaveBeenCalledWith('1', 'Drinks')
+    expect(result.current.categories).toEqual([renamed])
+  })
 })
