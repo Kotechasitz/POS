@@ -2003,17 +2003,37 @@ to:
         />
 ```
 
-Change the Hold and Clear Cart buttons' `disabled` conditions to also include `showPaymentModal`:
+Change the Hold and Clear Cart buttons' `disabled` conditions to also include `showPaymentModal`. Task 2 wrapped the footer's Hold button in `{!showHoldModal && (...)}` (to resolve a naming collision with `HoldCartModal`'s own submit button, both named "Hold") — keep that wrapper exactly as it is; only add `|| showPaymentModal` to its existing `disabled` expression, changing:
 
 ```typescript
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={handleHoldClick}
-          disabled={items.length === 0 || completing || showPaymentModal}
-        >
-          Hold
+        {!showHoldModal && (
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={handleHoldClick}
+            disabled={items.length === 0 || completing}
+          >
+            Hold
+          </button>
+        )}
+        <button type="button" className="btn btn-secondary" onClick={handleShowHeldCarts}>
+          {`Held Carts (${heldCarts.length})`}
         </button>
+```
+
+to:
+
+```typescript
+        {!showHoldModal && (
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={handleHoldClick}
+            disabled={items.length === 0 || completing || showPaymentModal}
+          >
+            Hold
+          </button>
+        )}
         <button
           type="button"
           className="btn btn-secondary"
@@ -2023,6 +2043,21 @@ Change the Hold and Clear Cart buttons' `disabled` conditions to also include `s
           {`Held Carts (${heldCarts.length})`}
         </button>
 ```
+
+Change the Clear Cart button from:
+
+```typescript
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={handleClearCart}
+          disabled={items.length === 0 || completing}
+        >
+          Clear Cart
+        </button>
+```
+
+to:
 
 ```typescript
         <button
