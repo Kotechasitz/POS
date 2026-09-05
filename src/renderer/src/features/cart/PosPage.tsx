@@ -42,25 +42,16 @@ function PosPage(): React.JSX.Element {
   const [discountBaht, setDiscountBaht] = useState('')
   const [discountError, setDiscountError] = useState<string | null>(null)
 
-  useEffect(() => {
-    let cancelled = false
-
-    async function reconcileStock(): Promise<void> {
-      const currentItems = useCartStore.getState().items
-      for (const item of currentItems) {
-        const fresh = await window.api.products.getByBarcode(item.barcode)
-        if (!cancelled && fresh) {
-          useCartStore.getState().syncStock(item.productId, fresh.stock)
-        }
-      }
-    }
-
-    reconcileStock()
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const subtotalCents = cartTotalCents(items)
+  const parsedDiscount =
+    discountBaht.trim().length > 0 ? Money.parseBaht(discountBaht) : Money.fromCents(0)
+  // Clamp for display only — the actual reject-if-too-large validation runs
+  // on Finish Sale click, below. This just keeps the live Total display
+  // from ever showing a negative number while the cashier is still typing.
+  const displayDiscountCents = parsedDiscount ? Math.min(parsedDiscount.cents, subtotalCents) : 0
+  const totalCents = Money.fromCents(subtotalCents).subtract(
+    Money.fromCents(displayDiscountCents)
+  ).cents
 
   function handleBarcodeKeyDown(event: React.KeyboardEvent<HTMLInputElement>): void {
     if (event.key === 'Enter' && value.trim().length > 0) {
@@ -98,6 +89,41 @@ function PosPage(): React.JSX.Element {
     setDiscountError(null)
     setShowPaymentModal(true)
   }
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function reconcileStock(): Promise<void> {
+      const currentItems = useCartStore.getState().items
+      for (const item of currentItems) {
+        const fresh = await window.api.products.getByBarcode(item.barcode)
+        if (!cancelled && fresh) {
+          useCartStore.getState().syncStock(item.productId, fresh.stock)
+        }
+      }
+    }
+
+    reconcileStock()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    function handleGlobalKeyDown(event: KeyboardEvent): void {
+      if (event.key !== 'F12') {
+        return
+      }
+      event.preventDefault()
+      if (items.length === 0 || completing || showPaymentModal) {
+        return
+      }
+      handleFinishSaleClick()
+    }
+    document.addEventListener('keydown', handleGlobalKeyDown)
+    return () => document.removeEventListener('keydown', handleGlobalKeyDown)
+  }, [items.length, completing, showPaymentModal, discountBaht, subtotalCents]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSelectProductTile(product: ProductRecord): Promise<void> {
     await scan(product.barcode)
@@ -157,17 +183,6 @@ function PosPage(): React.JSX.Element {
   function handleCloseHeldCarts(): void {
     setShowHeldCartsModal(false)
   }
-
-  const subtotalCents = cartTotalCents(items)
-  const parsedDiscount =
-    discountBaht.trim().length > 0 ? Money.parseBaht(discountBaht) : Money.fromCents(0)
-  // Clamp for display only — the actual reject-if-too-large validation runs
-  // on Finish Sale click, below. This just keeps the live Total display
-  // from ever showing a negative number while the cashier is still typing.
-  const displayDiscountCents = parsedDiscount ? Math.min(parsedDiscount.cents, subtotalCents) : 0
-  const totalCents = Money.fromCents(subtotalCents).subtract(
-    Money.fromCents(displayDiscountCents)
-  ).cents
 
   return (
     <div className="products-page">

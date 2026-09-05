@@ -507,4 +507,39 @@ describe('PosPage', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument()
   })
+
+  it('pressing F12 opens the payment method modal, same as clicking Finish Sale', async () => {
+    const user = userEvent.setup()
+    render(<PosPage />)
+
+    await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
+    await waitFor(() => expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument())
+
+    await user.keyboard('{F12}')
+
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+  })
+
+  it('pressing F12 does nothing when the cart is empty', async () => {
+    const user = userEvent.setup()
+    render(<PosPage />)
+
+    await user.keyboard('{F12}')
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('pressing F12 while the payment method modal is already open does not reopen or duplicate it', async () => {
+    const user = userEvent.setup()
+    render(<PosPage />)
+
+    await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
+    await waitFor(() => expect(screen.getByRole('cell', { name: 'Coke' })).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: 'Finish Sale' }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+
+    await user.keyboard('{F12}')
+
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+  })
 })
