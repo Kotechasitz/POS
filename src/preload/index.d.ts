@@ -38,6 +38,8 @@ declare global {
       salesHistory: {
         list: () => Promise<SaleListItem[]>
         detail: (saleId: string) => Promise<SaleRecord | null>
+        void: (saleId: string, reason: string) => Promise<SaleRecord>
+        exportCsv: (sales: SaleListItem[]) => Promise<{ canceled: boolean }>
       }
       images: {
         pickProductImage: () => Promise<{ path: string; previewDataUrl: string } | null>

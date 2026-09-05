@@ -43,7 +43,11 @@ const api = {
   salesHistory: {
     list: (): Promise<SaleListItem[]> => ipcRenderer.invoke('salesHistory:list'),
     detail: (saleId: string): Promise<SaleRecord | null> =>
-      ipcRenderer.invoke('salesHistory:detail', saleId)
+      ipcRenderer.invoke('salesHistory:detail', saleId),
+    void: (saleId: string, reason: string): Promise<SaleRecord> =>
+      ipcRenderer.invoke('salesHistory:void', saleId, reason),
+    exportCsv: (sales: SaleListItem[]): Promise<{ canceled: boolean }> =>
+      ipcRenderer.invoke('salesHistory:exportCsv', sales)
   },
   images: {
     pickProductImage: (): Promise<{ path: string; previewDataUrl: string } | null> =>

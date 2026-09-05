@@ -13,13 +13,17 @@ vi.mock('electron', () => ({
       handlers.set(channel, listener)
     }
   },
-  app: { getPath: vi.fn() }
+  app: { getPath: vi.fn() },
+  dialog: { showSaveDialog: vi.fn() }
 }))
 
+import { dialog } from 'electron'
 import { registerSalesHistoryHandlers } from './register-sales-history-handlers'
 import { createDbClient, type DbClient } from '../database/client'
 import { createProduct } from '../database/repositories/product-repository'
 import { completeSale } from '../database/repositories/sale-repository'
+import { SaleAlreadyVoidError } from '../database/repositories/sales-history-repository'
+import type { SaleRecord } from '../../shared/sale'
 
 describe('registerSalesHistoryHandlers', () => {
   let dbFile: string
@@ -73,5 +77,71 @@ describe('registerSalesHistoryHandlers', () => {
     const found = detailHandler({}, sale.id) as { id: string } | null
     expect(found?.id).toBe(sale.id)
     expect(detailHandler({}, 'nope')).toBeNull()
+  })
+
+  it('registers salesHistory:void and salesHistory:exportCsv', () => {
+    expect(handlers.has('salesHistory:void')).toBe(true)
+    expect(handlers.has('salesHistory:exportCsv')).toBe(true)
+  })
+
+  it('salesHistory:void voids a sale and returns stock', () => {
+    const water = createProduct(client.db, { barcode: '222', name: 'Water', priceCents: 1000, stock: 5 })
+    const sale = completeSale(
+      client.db,
+      [{ productId: water.id, productName: water.name, unitPriceCents: water.priceCents, quantity: 2 }],
+      'CASH'
+    )
+
+    const voidHandler = handlers.get('salesHistory:void')!
+    const voided = voidHandler({}, sale.id, 'Customer changed their mind') as SaleRecord
+
+    expect(voided.status).toBe('VOID')
+    expect(voided.voidReason).toBe('Customer changed their mind')
+  })
+
+  it('salesHistory:void propagates SaleAlreadyVoidError on a second void', () => {
+    const water = createProduct(client.db, { barcode: '222', name: 'Water', priceCents: 1000, stock: 5 })
+    const sale = completeSale(
+      client.db,
+      [{ productId: water.id, productName: water.name, unitPriceCents: water.priceCents, quantity: 1 }],
+      'CASH'
+    )
+    const voidHandler = handlers.get('salesHistory:void')!
+    voidHandler({}, sale.id, 'First void')
+
+    expect(() => voidHandler({}, sale.id, 'Second attempt')).toThrow(SaleAlreadyVoidError)
+  })
+
+  it('salesHistory:exportCsv writes a CSV file to the path the save dialog returns', async () => {
+    const water = createProduct(client.db, { barcode: '222', name: 'Water', priceCents: 1000, stock: 5 })
+    const sale = completeSale(
+      client.db,
+      [{ productId: water.id, productName: water.name, unitPriceCents: water.priceCents, quantity: 2 }],
+      'CASH'
+    )
+    const listItem = { ...sale, billNumber: 1, itemCount: 1 }
+    const tmpPath = path.join(os.tmpdir(), `pos-export-${Date.now()}.csv`)
+    ;(dialog.showSaveDialog as ReturnType<typeof vi.fn>).mockResolvedValue({
+      canceled: false,
+      filePath: tmpPath
+    })
+
+    const exportHandler = handlers.get('salesHistory:exportCsv')!
+    const result = await exportHandler({}, [listItem])
+
+    expect(result).toEqual({ canceled: false })
+    const written = fs.readFileSync(tmpPath, 'utf-8')
+    expect(written).toContain('Bill #,Date,Time,Payment Method,Items,Total,Status')
+    expect(written).toContain('2x Water')
+    fs.rmSync(tmpPath)
+  })
+
+  it('salesHistory:exportCsv returns canceled: true and writes nothing when the save dialog is dismissed', async () => {
+    ;(dialog.showSaveDialog as ReturnType<typeof vi.fn>).mockResolvedValue({ canceled: true })
+
+    const exportHandler = handlers.get('salesHistory:exportCsv')!
+    const result = await exportHandler({}, [])
+
+    expect(result).toEqual({ canceled: true })
   })
 })
