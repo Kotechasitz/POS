@@ -113,9 +113,9 @@ function CategoryManager({
         <h2 id="category-manager-title">Manage Categories</h2>
 
         {loading && <div className="loading-row">Loading categories…</div>}
-        {(error || actionError) && (
+        {(actionError || error) && (
           <p role="alert" className="alert alert-danger">
-            {error ?? actionError}
+            {actionError ?? error}
           </p>
         )}
 

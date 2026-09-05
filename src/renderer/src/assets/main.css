@@ -64,14 +64,6 @@
   color: var(--color-ink-faint);
 }
 
-.products-toolbar select {
-  padding: 9px var(--space-3);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
-  font-size: 14px;
-  background: var(--color-surface);
-}
-
 /* ---- Buttons ---- */
 
 .btn {
@@ -389,7 +381,8 @@
 }
 
 .field input,
-.field select {
+.field select,
+.products-toolbar select {
   padding: 9px var(--space-3);
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
@@ -703,7 +696,8 @@
   display: none;
 }
 
-.category-manager-add-form input {
+.category-manager-add-form input,
+.category-manager-list li input {
   flex: 1;
   padding: 9px var(--space-3);
   border-radius: var(--radius-sm);

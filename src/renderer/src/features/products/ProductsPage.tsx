@@ -41,10 +41,21 @@ function ProductsPage(): React.JSX.Element {
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
-  const filteredProducts = categoryFilter
-    ? products.filter((product) => product.categoryId === categoryFilter)
+  // If the category currently selected in the filter gets deleted (from the
+  // Category Manager modal, which shares this same categories list), treat
+  // the filter as cleared instead of leaving the dropdown pointed at an id
+  // that no longer has a matching <option> — a dead-end filter that would
+  // otherwise silently show "no products" with no visible cause. Derived at
+  // render time rather than synced via an effect, so a deleted category's
+  // id never needs to be written back into state.
+  const effectiveCategoryFilter = categories.some((category) => category.id === categoryFilter)
+    ? categoryFilter
+    : ''
+
+  const filteredProducts = effectiveCategoryFilter
+    ? products.filter((product) => product.categoryId === effectiveCategoryFilter)
     : products
-  const categoryFilterActive = categoryFilter !== '' && products.length > 0
+  const categoryFilterActive = effectiveCategoryFilter !== '' && products.length > 0
 
   function handleAddClick(): void {
     setEditingProduct(null)
@@ -98,7 +109,7 @@ function ProductsPage(): React.JSX.Element {
           </button>
           <select
             aria-label="Filter by category"
-            value={categoryFilter}
+            value={effectiveCategoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
           >
             <option value="">All Categories</option>

@@ -276,4 +276,28 @@ describe('ProductsPage', () => {
       expect(screen.getByText('No products in this category')).toBeInTheDocument()
     )
   })
+
+  it('resets the category filter to "All Categories" if the filtered category is deleted', async () => {
+    const user = userEvent.setup()
+    ;(window.api.categories.list as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce([beverages])
+      .mockResolvedValue([])
+    ;(window.api.categories.delete as ReturnType<typeof vi.fn>).mockResolvedValue(undefined)
+
+    render(<ProductsPage />)
+    await waitFor(() => expect(screen.getByText('Water')).toBeInTheDocument())
+
+    const filterSelect = screen.getByLabelText('Filter by category') as HTMLSelectElement
+    await user.selectOptions(filterSelect, 'Beverages')
+    expect(filterSelect).toHaveValue('1')
+
+    await user.click(screen.getByRole('button', { name: 'Manage Categories' }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: 'Delete Beverages' }))
+    await waitFor(() => expect(window.api.categories.delete).toHaveBeenCalledWith('1'))
+    await user.click(screen.getByRole('button', { name: 'Close' }))
+
+    await waitFor(() => expect(filterSelect).toHaveValue(''))
+    expect(screen.getByText('Water')).toBeInTheDocument()
+  })
 })
