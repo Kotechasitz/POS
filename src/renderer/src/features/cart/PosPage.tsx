@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useCartStore, cartTotalCents } from './cartStore'
 import { useBarcodeScan } from './useBarcodeScan'
 import { useCompleteSale } from './useCompleteSale'
@@ -49,9 +49,10 @@ function PosPage(): React.JSX.Element {
   // on Finish Sale click, below. This just keeps the live Total display
   // from ever showing a negative number while the cashier is still typing.
   const displayDiscountCents = parsedDiscount ? Math.min(parsedDiscount.cents, subtotalCents) : 0
-  const totalCents = Money.fromCents(subtotalCents).subtract(
-    Money.fromCents(displayDiscountCents)
-  ).cents
+  const totalCents = useMemo(
+    () => Money.fromCents(subtotalCents).subtract(Money.fromCents(displayDiscountCents)).cents,
+    [subtotalCents, displayDiscountCents]
+  )
 
   function handleBarcodeKeyDown(event: React.KeyboardEvent<HTMLInputElement>): void {
     if (event.key === 'Enter' && value.trim().length > 0) {
@@ -75,7 +76,7 @@ function PosPage(): React.JSX.Element {
     setDiscountError(null)
   }
 
-  function handleFinishSaleClick(): void {
+  const handleFinishSaleClick = useCallback((): void => {
     if (discountBaht.trim().length > 0) {
       if (!parsedDiscount) {
         setDiscountError('Discount must be a non-negative number')
@@ -88,7 +89,7 @@ function PosPage(): React.JSX.Element {
     }
     setDiscountError(null)
     setShowPaymentModal(true)
-  }
+  }, [discountBaht, parsedDiscount, subtotalCents])
 
   useEffect(() => {
     let cancelled = false
@@ -123,7 +124,7 @@ function PosPage(): React.JSX.Element {
     }
     document.addEventListener('keydown', handleGlobalKeyDown)
     return () => document.removeEventListener('keydown', handleGlobalKeyDown)
-  }, [items.length, completing, showPaymentModal, discountBaht, subtotalCents]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [items.length, completing, showPaymentModal, handleFinishSaleClick])
 
   async function handleSelectProductTile(product: ProductRecord): Promise<void> {
     await scan(product.barcode)
