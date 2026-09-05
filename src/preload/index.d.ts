@@ -1,7 +1,7 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
 import type { CreateProductInput, ProductRecord, UpdateProductInput } from '../shared/product'
 import type { CategoryRecord } from '../shared/category'
-import type { SaleLineInput, SaleRecord } from '../shared/sale'
+import type { SaleLineInput, SaleRecord, PaymentMethod } from '../shared/sale'
 import type { DashboardSummary, TopProduct, DailySales } from '../shared/dashboard'
 import type { SaleListItem } from '../shared/salesHistory'
 
@@ -23,7 +23,11 @@ declare global {
         delete: (id: string) => Promise<void>
       }
       sales: {
-        complete: (items: SaleLineInput[]) => Promise<SaleRecord>
+        complete: (
+          items: SaleLineInput[],
+          paymentMethod: PaymentMethod,
+          discountCents: number
+        ) => Promise<SaleRecord>
       }
       dashboard: {
         summary: () => Promise<DashboardSummary>

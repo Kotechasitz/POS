@@ -57,7 +57,7 @@ describe('registerSaleHandlers', () => {
       unitPriceCents: water.priceCents,
       quantity: 2
     }
-    const sale = completeHandler({}, [line]) as SaleRecord
+    const sale = completeHandler({}, [line], 'CASH', 0) as SaleRecord
 
     expect(sale.totalCents).toBe(2000)
     expect(sale.items).toHaveLength(1)
@@ -78,6 +78,28 @@ describe('registerSaleHandlers', () => {
       unitPriceCents: water.priceCents,
       quantity: 2
     }
-    expect(() => completeHandler({}, [line])).toThrow(InsufficientStockError)
+    expect(() => completeHandler({}, [line], 'CASH', 0)).toThrow(InsufficientStockError)
+  })
+
+  it('sales:complete records the payment method and applies the discount', () => {
+    const water = createProduct(client.db, {
+      barcode: '222',
+      name: 'Water',
+      priceCents: 1000,
+      stock: 5
+    })
+    const completeHandler = handlers.get('sales:complete')!
+
+    const line: SaleLineInput = {
+      productId: water.id,
+      productName: water.name,
+      unitPriceCents: water.priceCents,
+      quantity: 2
+    }
+    const sale = completeHandler({}, [line], 'QR', 500) as SaleRecord
+
+    expect(sale.paymentMethod).toBe('QR')
+    expect(sale.discountCents).toBe(500)
+    expect(sale.totalCents).toBe(1500)
   })
 })

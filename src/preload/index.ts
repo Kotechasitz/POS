@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import type { CreateProductInput, ProductRecord, UpdateProductInput } from '../shared/product'
 import type { CategoryRecord } from '../shared/category'
-import type { SaleLineInput, SaleRecord } from '../shared/sale'
+import type { SaleLineInput, SaleRecord, PaymentMethod } from '../shared/sale'
 import type { DashboardSummary, TopProduct, DailySales } from '../shared/dashboard'
 import type { SaleListItem } from '../shared/salesHistory'
 
@@ -26,8 +26,11 @@ const api = {
     delete: (id: string): Promise<void> => ipcRenderer.invoke('categories:delete', id)
   },
   sales: {
-    complete: (items: SaleLineInput[]): Promise<SaleRecord> =>
-      ipcRenderer.invoke('sales:complete', items)
+    complete: (
+      items: SaleLineInput[],
+      paymentMethod: PaymentMethod,
+      discountCents: number
+    ): Promise<SaleRecord> => ipcRenderer.invoke('sales:complete', items, paymentMethod, discountCents)
   },
   dashboard: {
     summary: (): Promise<DashboardSummary> => ipcRenderer.invoke('dashboard:summary'),
