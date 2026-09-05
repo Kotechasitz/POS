@@ -9,6 +9,14 @@ import type { SaleListItem } from '../../../../shared/salesHistory'
 import { toUserMessage } from '../../lib/ipcError'
 import { formatDateTime } from '../../lib/formatDate'
 
+function toLocalDay(iso: string): string {
+  const d = new Date(iso)
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 function SalesHistoryPage(): React.JSX.Element {
   const { sales, loading, error, reload } = useSalesHistory()
   const [selectedSale, setSelectedSale] = useState<SaleRecord | null>(null)
@@ -31,7 +39,7 @@ function SalesHistoryPage(): React.JSX.Element {
     // Compare by calendar day only, in local time — matching how the
     // date inputs themselves collect a plain YYYY-MM-DD with no time
     // component, not an exact instant.
-    const saleDay = sale.createdAt.slice(0, 10)
+    const saleDay = toLocalDay(sale.createdAt)
     if (fromDate && saleDay < fromDate) {
       return false
     }

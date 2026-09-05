@@ -175,6 +175,43 @@ describe('SalesHistoryPage', () => {
     expect(screen.getByText('#2')).toBeInTheDocument()
   })
 
+  it('filters by local calendar day, not UTC day, for a sale near midnight', async () => {
+    const user = userEvent.setup()
+    // Construct the fixture and the filter value from the same local Date
+    // object, so this test is correct regardless of the machine's actual
+    // timezone offset — it never needs to know or mock what that offset is.
+    // Local Sept 5, 1:00 AM: in any timezone ahead of UTC this serializes
+    // to a UTC ISO string dated Sept 4, which is exactly the case a naive
+    // UTC-slice comparison gets wrong.
+    const localSept5 = new Date(2026, 8, 5, 1, 0, 0)
+    const nearMidnightSale: SaleListItem = {
+      id: 'sale-3',
+      billNumber: 3,
+      totalCents: 500,
+      createdAt: localSept5.toISOString(),
+      itemCount: 1,
+      status: 'COMPLETED',
+      paymentMethod: 'CARD'
+    }
+    ;(window.api.salesHistory.list as ReturnType<typeof vi.fn>).mockResolvedValue([
+      nearMidnightSale
+    ])
+    render(<SalesHistoryPage />)
+    await waitFor(() => expect(screen.getByText('#3')).toBeInTheDocument())
+
+    // Filtering for its own local day (2026-09-05) must include it.
+    await user.type(screen.getByLabelText('From date'), '2026-09-05')
+    await user.type(screen.getByLabelText('To date'), '2026-09-05')
+    expect(screen.getByText('#3')).toBeInTheDocument()
+
+    // Filtering for the adjacent local day (2026-09-06) must exclude it.
+    await user.clear(screen.getByLabelText('From date'))
+    await user.type(screen.getByLabelText('From date'), '2026-09-06')
+    await user.clear(screen.getByLabelText('To date'))
+    await user.type(screen.getByLabelText('To date'), '2026-09-06')
+    expect(screen.queryByText('#3')).not.toBeInTheDocument()
+  })
+
   it('shows a Void button only on Completed rows', async () => {
     ;(window.api.salesHistory.list as ReturnType<typeof vi.fn>).mockResolvedValue([
       list[0],
