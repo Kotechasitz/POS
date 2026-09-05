@@ -15,10 +15,14 @@ export interface SaleItemRecord {
   totalCents: number
 }
 
+export type PaymentMethod = 'CASH' | 'QR' | 'CARD'
+
 export interface SaleRecord {
   id: string
   totalCents: number
   status: string
+  paymentMethod: PaymentMethod
+  discountCents: number
   createdAt: string
   items: SaleItemRecord[]
 }

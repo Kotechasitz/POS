@@ -45,6 +45,12 @@ export const sales = sqliteTable(
     id: text('id').primaryKey(),
     totalCents: integer('total_cents').notNull(),
     status: text('status').notNull().default('COMPLETED'),
+    // Default 'CASH' exists ONLY so SQLite can backfill any pre-Phase-8 sales
+    // rows on an existing shop's database — completeSale() (Task 2) always
+    // passes an explicit, validated paymentMethod on every new insert, so
+    // application code never actually relies on this default.
+    paymentMethod: text('payment_method').notNull().default('CASH'),
+    discountCents: integer('discount_cents').notNull().default(0),
     createdAt: text('created_at').notNull()
   },
   (table) => ({

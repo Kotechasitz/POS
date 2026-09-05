@@ -42,6 +42,10 @@ export class Money {
     return Money.fromCents(this._cents + other._cents)
   }
 
+  subtract(other: Money): Money {
+    return Money.fromCents(this._cents - other._cents)
+  }
+
   multiply(quantity: number): Money {
     if (!Number.isInteger(quantity) || quantity < 0) {
       throw new Error(`Quantity must be a non-negative integer, got ${quantity}`)

@@ -20,6 +20,18 @@ describe('Money', () => {
     expect(a.add(b).cents).toBe(30)
   })
 
+  it('subtracts one amount from another', () => {
+    const total = Money.fromBaht(40)
+    const discount = Money.fromBaht(5)
+    expect(total.subtract(discount).cents).toBe(3500)
+  })
+
+  it('rejects a subtraction that would go negative', () => {
+    const total = Money.fromBaht(10)
+    const discount = Money.fromBaht(15)
+    expect(() => total.subtract(discount)).toThrow('cannot be negative')
+  })
+
   it('computes a line total as unit price times quantity', () => {
     const unitPrice = Money.fromBaht(20)
     expect(unitPrice.multiply(3).cents).toBe(6000)
