@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import type { PaymentMethod } from '../../../../shared/sale'
+import { PAYMENT_METHODS } from '../../../../shared/sale'
 
 export interface PaymentMethodModalProps {
   submitting: boolean
@@ -7,11 +8,11 @@ export interface PaymentMethodModalProps {
   onCancel: () => void
 }
 
-const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
-  { value: 'CASH', label: 'Cash' },
-  { value: 'QR', label: 'QR' },
-  { value: 'CARD', label: 'Card' }
-]
+const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  CASH: 'Cash',
+  QR: 'QR',
+  CARD: 'Card'
+}
 
 function PaymentMethodModal({
   submitting,
@@ -49,13 +50,13 @@ function PaymentMethodModal({
         <div className="payment-method-options">
           {PAYMENT_METHODS.map((method) => (
             <button
-              key={method.value}
+              key={method}
               type="button"
               className="btn btn-primary payment-method-btn"
-              onClick={() => onSelect(method.value)}
+              onClick={() => onSelect(method)}
               disabled={submitting}
             >
-              {method.label}
+              {PAYMENT_METHOD_LABELS[method]}
             </button>
           ))}
         </div>

@@ -15,7 +15,9 @@ export interface SaleItemRecord {
   totalCents: number
 }
 
-export type PaymentMethod = 'CASH' | 'QR' | 'CARD'
+export const PAYMENT_METHODS = ['CASH', 'QR', 'CARD'] as const
+
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number]
 
 export interface SaleRecord {
   id: string

@@ -157,6 +157,19 @@ describe('PosPage', () => {
     expect(screen.getByLabelText('Cart total')).toHaveTextContent('฿0.00')
   })
 
+  it('disables the barcode field while the payment method modal is open, so a scan cannot change the total mid-pick', async () => {
+    const user = userEvent.setup()
+    render(<PosPage />)
+
+    await user.type(screen.getByLabelText('Barcode'), '111{Enter}')
+    await waitFor(() => expect(screen.getByText('Coke')).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: 'Finish Sale' }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+
+    expect(screen.getByLabelText('Barcode')).toBeDisabled()
+  })
+
   it('closes the payment method modal without completing the sale when Cancel is clicked', async () => {
     const user = userEvent.setup()
     render(<PosPage />)

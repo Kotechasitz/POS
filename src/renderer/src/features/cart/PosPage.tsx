@@ -98,6 +98,7 @@ function PosPage(): React.JSX.Element {
           onKeyDown={handleBarcodeKeyDown}
           placeholder="Scan or type a barcode, then press Enter"
           autoComplete="off"
+          disabled={showPaymentModal}
         />
       </div>
 

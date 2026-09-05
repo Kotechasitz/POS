@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import { products, sales, saleItems, stockTransactions } from '../schema'
 import type { SaleLineInput, SaleItemRecord, SaleRecord, PaymentMethod } from '../../../shared/sale'
+import { PAYMENT_METHODS } from '../../../shared/sale'
 import { Money } from '../../../shared/money'
 import { ProductNotFoundError } from './product-repository'
 
@@ -51,7 +52,7 @@ function validateLine(line: SaleLineInput): void {
 }
 
 function validatePaymentMethod(paymentMethod: PaymentMethod): void {
-  if (paymentMethod !== 'CASH' && paymentMethod !== 'QR' && paymentMethod !== 'CARD') {
+  if (!PAYMENT_METHODS.includes(paymentMethod)) {
     throw new SaleValidationError(`Invalid payment method: ${String(paymentMethod)}`)
   }
 }
