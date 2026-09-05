@@ -12,6 +12,8 @@ const products: ProductRecord[] = [
     priceCents: 2000,
     stock: 50,
     isActive: true,
+    categoryId: null,
+    imagePath: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z'
   },
@@ -22,6 +24,8 @@ const products: ProductRecord[] = [
     priceCents: 1000,
     stock: 0,
     isActive: false,
+    categoryId: null,
+    imagePath: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z'
   }

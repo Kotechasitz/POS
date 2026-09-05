@@ -4,13 +4,16 @@ import path from 'node:path'
 import os from 'node:os'
 
 const handlers = new Map<string, (...args: unknown[]) => unknown>()
+const isMock = vi.hoisted(() => ({ dev: true }))
 
+vi.mock('@electron-toolkit/utils', () => ({ is: isMock }))
 vi.mock('electron', () => ({
   ipcMain: {
     handle: (channel: string, listener: (...args: unknown[]) => unknown) => {
       handlers.set(channel, listener)
     }
-  }
+  },
+  app: { getPath: vi.fn() }
 }))
 
 import { registerSalesHistoryHandlers } from './register-sales-history-handlers'

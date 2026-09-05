@@ -11,6 +11,8 @@ const existing: ProductRecord = {
   priceCents: 1000,
   stock: 5,
   isActive: true,
+  categoryId: null,
+  imagePath: null,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z'
 }
@@ -22,6 +24,8 @@ const secondExisting: ProductRecord = {
   priceCents: 3500,
   stock: 20,
   isActive: true,
+  categoryId: null,
+  imagePath: null,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z'
 }

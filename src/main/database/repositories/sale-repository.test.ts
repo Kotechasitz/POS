@@ -1,8 +1,13 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
 import { eq } from 'drizzle-orm'
+
+const isMock = vi.hoisted(() => ({ dev: true }))
+vi.mock('@electron-toolkit/utils', () => ({ is: isMock }))
+vi.mock('electron', () => ({ app: { getPath: vi.fn() } }))
+
 import { createDbClient, type DbClient } from '../client'
 import { products, sales, saleItems, stockTransactions } from '../schema'
 import { createProduct, updateProduct } from './product-repository'

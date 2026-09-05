@@ -13,6 +13,8 @@ const coke: ProductRecord = {
   priceCents: 2000,
   stock: 5,
   isActive: true,
+  categoryId: null,
+  imagePath: null,
   createdAt: '',
   updatedAt: ''
 }

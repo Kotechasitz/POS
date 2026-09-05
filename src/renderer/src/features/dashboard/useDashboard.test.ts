@@ -17,6 +17,8 @@ const lowStock: ProductRecord[] = [
     priceCents: 2000,
     stock: 1,
     isActive: true,
+    categoryId: null,
+    imagePath: null,
     createdAt: '',
     updatedAt: ''
   }
