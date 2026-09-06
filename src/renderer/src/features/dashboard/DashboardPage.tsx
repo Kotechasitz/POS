@@ -49,7 +49,10 @@ function DashboardPage(): React.JSX.Element {
     error
   } = useDashboard()
 
-  if (loading) {
+  // Only the very first load (nothing has ever arrived yet) replaces the
+  // whole page — once we have data, a period switch keeps the header and
+  // period control mounted and only reloads the content below them.
+  if (loading && stats === null) {
     return (
       <div className="products-page">
         <div className="loading-row">
@@ -60,7 +63,7 @@ function DashboardPage(): React.JSX.Element {
     )
   }
 
-  if (error) {
+  if (error && stats === null) {
     return (
       <div className="products-page">
         <div className="products-header">
@@ -103,84 +106,101 @@ function DashboardPage(): React.JSX.Element {
         </div>
       </div>
 
-      <div className="dashboard-stats">
-        <StatCard
-          label="Total Sales"
-          value={Money.fromCents(current.salesCents).format()}
-          current={current.salesCents}
-          previous={previous.salesCents}
-        />
-        <StatCard
-          label="Total Orders"
-          value={String(current.orderCount)}
-          current={current.orderCount}
-          previous={previous.orderCount}
-        />
-        <StatCard
-          label="Avg Order Value"
-          value={Money.fromCents(current.avgOrderValueCents).format()}
-          current={current.avgOrderValueCents}
-          previous={previous.avgOrderValueCents}
-        />
-        <StatCard
-          label="Units Sold"
-          value={String(current.unitsSold)}
-          current={current.unitsSold}
-          previous={previous.unitsSold}
-        />
-      </div>
+      {error && (
+        <p role="alert" className="alert alert-danger alert-inline">
+          {error}
+        </p>
+      )}
 
-      <div className="dashboard-panels">
-        <div className="dashboard-panel dashboard-panel-chart">
-          <h2>{period === 'today' ? 'Today by Hour' : 'Last 7 Days'}</h2>
-          <BarChart
-            data={chartData}
-            ariaLabel={period === 'today' ? 'Sales by hour, today' : 'Sales for the last 7 days'}
-          />
+      {loading ? (
+        <div className="loading-row">
+          <span className="spinner" aria-hidden="true" />
+          Loading dashboard…
         </div>
+      ) : (
+        <>
+          <div className="dashboard-stats">
+            <StatCard
+              label="Total Sales"
+              value={Money.fromCents(current.salesCents).format()}
+              current={current.salesCents}
+              previous={previous.salesCents}
+            />
+            <StatCard
+              label="Total Orders"
+              value={String(current.orderCount)}
+              current={current.orderCount}
+              previous={previous.orderCount}
+            />
+            <StatCard
+              label="Avg Order Value"
+              value={Money.fromCents(current.avgOrderValueCents).format()}
+              current={current.avgOrderValueCents}
+              previous={previous.avgOrderValueCents}
+            />
+            <StatCard
+              label="Units Sold"
+              value={String(current.unitsSold)}
+              current={current.unitsSold}
+              previous={previous.unitsSold}
+            />
+          </div>
 
-        <div className="dashboard-panel dashboard-panel-donut">
-          <h2>Sales by Payment Method</h2>
-          <DonutChart data={paymentBreakdown} />
-        </div>
+          <div className="dashboard-panels">
+            <div className="dashboard-panel dashboard-panel-chart">
+              <h2>{period === 'today' ? 'Today by Hour' : 'Last 7 Days'}</h2>
+              <BarChart
+                data={chartData}
+                ariaLabel={
+                  period === 'today' ? 'Sales by hour, today' : 'Sales for the last 7 days'
+                }
+              />
+            </div>
 
-        <div className="dashboard-panel dashboard-panel-top">
-          <h2>Top Products</h2>
-          {topProducts.length === 0 ? (
-            <p className="empty-hint">No sales yet</p>
-          ) : (
-            <ol className="top-products-list">
-              {topProducts.map((product, index) => (
-                <li key={product.productId}>
-                  <span>
-                    {index + 1}. {product.productName}
-                  </span>
-                  <span>
-                    {product.totalQuantity} sold ·{' '}
-                    {Money.fromCents(product.totalRevenueCents).format()}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          )}
-        </div>
+            <div className="dashboard-panel dashboard-panel-donut">
+              <h2>Sales by Payment Method</h2>
+              <DonutChart data={paymentBreakdown} />
+            </div>
 
-        <div className="dashboard-panel dashboard-panel-low">
-          <h2>Low Stock</h2>
-          {lowStockProducts.length === 0 ? (
-            <p className="empty-hint">Nothing low on stock</p>
-          ) : (
-            <ul className="low-stock-list">
-              {lowStockProducts.map((product) => (
-                <li key={product.id}>
-                  <span>{product.name}</span>
-                  <span className="badge badge-inactive">{product.stock} left</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
+            <div className="dashboard-panel dashboard-panel-top">
+              <h2>Top Products</h2>
+              {topProducts.length === 0 ? (
+                <p className="empty-hint">No sales yet</p>
+              ) : (
+                <ol className="top-products-list">
+                  {topProducts.map((product, index) => (
+                    <li key={product.productId}>
+                      <span>
+                        {index + 1}. {product.productName}
+                      </span>
+                      <span>
+                        {product.totalQuantity} sold ·{' '}
+                        {Money.fromCents(product.totalRevenueCents).format()}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+
+            <div className="dashboard-panel dashboard-panel-low">
+              <h2>Low Stock</h2>
+              {lowStockProducts.length === 0 ? (
+                <p className="empty-hint">Nothing low on stock</p>
+              ) : (
+                <ul className="low-stock-list">
+                  {lowStockProducts.map((product) => (
+                    <li key={product.id}>
+                      <span>{product.name}</span>
+                      <span className="badge badge-inactive">{product.stock} left</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

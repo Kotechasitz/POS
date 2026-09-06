@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { render, screen, waitFor, within, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import DashboardPage from './DashboardPage'
 import type {
@@ -96,6 +96,20 @@ describe('DashboardPage', () => {
     expect(within(salesCard).getByText('— vs previous period')).toBeInTheDocument()
   })
 
+  it('shows a negative growth indicator with a leading minus sign when the previous period was higher', async () => {
+    ;(window.api.dashboard.stats as ReturnType<typeof vi.fn>).mockResolvedValue({
+      current: { salesCents: 4000, orderCount: 2, unitsSold: 4, avgOrderValueCents: 2000 },
+      previous: { salesCents: 5000, orderCount: 2, unitsSold: 5, avgOrderValueCents: 2500 }
+    })
+    render(<DashboardPage />)
+    await waitFor(() => expect(screen.getByText('Total Sales')).toBeInTheDocument())
+    const salesCard = screen.getByText('Total Sales').closest('.stat-card') as HTMLElement
+    // current 4000 vs previous 5000 -> -20%
+    const growthEl = within(salesCard).getByText('-20% vs previous period')
+    expect(growthEl).toBeInTheDocument()
+    expect(growthEl).toHaveClass('stat-growth-negative')
+  })
+
   it('defaults to the Today period and switching to 7 Days re-fetches stats, chart, and breakdown', async () => {
     render(<DashboardPage />)
     await waitFor(() => expect(screen.getByText('Total Sales')).toBeInTheDocument())
@@ -111,6 +125,56 @@ describe('DashboardPage', () => {
     // current 9000 vs previous 8000 -> +13%
     await waitFor(() => expect(within(salesCard).getByText('฿90.00')).toBeInTheDocument())
     expect(within(salesCard).getByText('+13% vs previous period')).toBeInTheDocument()
+  })
+
+  it('shows the full-page spinner only on the very first load, before any data has ever arrived', async () => {
+    let resolveStats!: (value: DashboardStats) => void
+    ;(window.api.dashboard.stats as ReturnType<typeof vi.fn>).mockImplementation(
+      () =>
+        new Promise<DashboardStats>((resolve) => {
+          resolveStats = resolve
+        })
+    )
+
+    render(<DashboardPage />)
+
+    expect(screen.getByText('Loading dashboard…')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Period')).not.toBeInTheDocument()
+
+    await act(async () => {
+      resolveStats(todayStats)
+    })
+
+    await waitFor(() => expect(screen.getByLabelText('Period')).toBeInTheDocument())
+  })
+
+  it('keeps the header and period select mounted while a period switch is still reloading', async () => {
+    render(<DashboardPage />)
+    await waitFor(() => expect(screen.getByText('Total Sales')).toBeInTheDocument())
+
+    let resolveStats!: (value: DashboardStats) => void
+    ;(window.api.dashboard.stats as ReturnType<typeof vi.fn>).mockImplementation(
+      () =>
+        new Promise<DashboardStats>((resolve) => {
+          resolveStats = resolve
+        })
+    )
+
+    await userEvent.selectOptions(screen.getByLabelText('Period'), '7days')
+
+    // The period effect's promise is still pending here — the select the
+    // user just used must not have been unmounted out from under them.
+    expect(screen.getByLabelText('Period')).toBeInTheDocument()
+    expect(screen.getByLabelText('Period')).toHaveValue('7days')
+    expect(screen.getByText('Loading dashboard…')).toBeInTheDocument()
+
+    await act(async () => {
+      resolveStats(sevenDayStats)
+    })
+
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'Last 7 Days' })).toBeInTheDocument()
+    )
   })
 
   it('renders the payment method donut chart', async () => {
