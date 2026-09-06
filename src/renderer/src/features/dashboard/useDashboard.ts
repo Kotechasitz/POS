@@ -28,8 +28,13 @@ export function useDashboard(): UseDashboardResult {
   const [paymentBreakdown, setPaymentBreakdown] = useState<PaymentMethodBreakdown[]>([])
   const [topProducts, setTopProducts] = useState<TopProduct[]>([])
   const [lowStockProducts, setLowStockProducts] = useState<ProductRecord[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  // Loading and error state are tracked separately per effect so that one
+  // effect's success can't clobber the other's in-flight/failed state —
+  // see Phase 11 Task 3 review findings 1 & 2.
+  const [staticLoading, setStaticLoading] = useState(true)
+  const [periodLoading, setPeriodLoading] = useState(true)
+  const [staticError, setStaticError] = useState<string | null>(null)
+  const [periodError, setPeriodError] = useState<string | null>(null)
 
   // Top products and low stock are period-independent (unchanged from
   // Phase 5) — loaded once, not re-fetched when `period` changes.
@@ -37,6 +42,7 @@ export function useDashboard(): UseDashboardResult {
     let ignore = false
 
     async function loadStatic(): Promise<void> {
+      setStaticLoading(true)
       try {
         const [topProductsResult, lowStockResult] = await Promise.all([
           window.api.dashboard.topProducts(),
@@ -45,10 +51,15 @@ export function useDashboard(): UseDashboardResult {
         if (!ignore) {
           setTopProducts(topProductsResult)
           setLowStockProducts(lowStockResult)
+          setStaticError(null)
         }
       } catch (err) {
         if (!ignore) {
-          setError(toUserMessage(err))
+          setStaticError(toUserMessage(err))
+        }
+      } finally {
+        if (!ignore) {
+          setStaticLoading(false)
         }
       }
     }
@@ -63,7 +74,7 @@ export function useDashboard(): UseDashboardResult {
     let ignore = false
 
     async function loadPeriod(): Promise<void> {
-      setLoading(true)
+      setPeriodLoading(true)
       try {
         const [statsResult, chartDataResult, paymentBreakdownResult] = await Promise.all([
           window.api.dashboard.stats(period),
@@ -74,15 +85,15 @@ export function useDashboard(): UseDashboardResult {
           setStats(statsResult)
           setChartData(chartDataResult)
           setPaymentBreakdown(paymentBreakdownResult)
-          setError(null)
+          setPeriodError(null)
         }
       } catch (err) {
         if (!ignore) {
-          setError(toUserMessage(err))
+          setPeriodError(toUserMessage(err))
         }
       } finally {
         if (!ignore) {
-          setLoading(false)
+          setPeriodLoading(false)
         }
       }
     }
@@ -101,7 +112,7 @@ export function useDashboard(): UseDashboardResult {
     paymentBreakdown,
     topProducts,
     lowStockProducts,
-    loading,
-    error
+    loading: staticLoading || periodLoading,
+    error: staticError ?? periodError
   }
 }

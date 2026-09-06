@@ -103,4 +103,42 @@ describe('useDashboard', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.error).toBe('Something broke')
   })
+
+  it('does not let a successful period fetch clobber a static-effect error', async () => {
+    ;(window.api.dashboard.topProducts as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error("Error invoking remote method 'dashboard:topProducts': Static source broke")
+    )
+    const { result } = renderHook(() => useDashboard())
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    // The period effect (stats/chartData/paymentBreakdown) resolved successfully,
+    // but the static effect's failure must still be reflected, not silently
+    // cleared by the period effect's `setError(null)`.
+    expect(result.current.error).not.toBeNull()
+    expect(result.current.error).toBe('Static source broke')
+    expect(result.current.topProducts).toEqual([])
+  })
+
+  it('keeps loading true until the slower static effect also finishes', async () => {
+    let resolveTopProducts!: (value: TopProduct[]) => void
+    ;(window.api.dashboard.topProducts as ReturnType<typeof vi.fn>).mockImplementation(
+      () =>
+        new Promise<TopProduct[]>((resolve) => {
+          resolveTopProducts = resolve
+        })
+    )
+
+    const { result } = renderHook(() => useDashboard())
+
+    // The period effect's data lands, but the static effect is still in flight.
+    await waitFor(() => expect(result.current.stats).toEqual(todayStats))
+    expect(result.current.loading).toBe(true)
+
+    await act(async () => {
+      resolveTopProducts(topProducts)
+    })
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.topProducts).toEqual(topProducts)
+  })
 })
