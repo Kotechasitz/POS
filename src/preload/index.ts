@@ -3,7 +3,13 @@ import { electronAPI } from '@electron-toolkit/preload'
 import type { CreateProductInput, ProductRecord, UpdateProductInput } from '../shared/product'
 import type { CategoryRecord } from '../shared/category'
 import type { SaleLineInput, SaleRecord, PaymentMethod } from '../shared/sale'
-import type { DashboardSummary, TopProduct, DailySales } from '../shared/dashboard'
+import type {
+  DashboardPeriod,
+  DashboardStats,
+  ChartBucket,
+  PaymentMethodBreakdown,
+  TopProduct
+} from '../shared/dashboard'
 import type { SaleListItem } from '../shared/salesHistory'
 
 // Custom APIs for renderer
@@ -33,10 +39,14 @@ const api = {
     ): Promise<SaleRecord> => ipcRenderer.invoke('sales:complete', items, paymentMethod, discountCents)
   },
   dashboard: {
-    summary: (): Promise<DashboardSummary> => ipcRenderer.invoke('dashboard:summary'),
+    stats: (period: DashboardPeriod): Promise<DashboardStats> =>
+      ipcRenderer.invoke('dashboard:stats', period),
+    chartData: (period: DashboardPeriod): Promise<ChartBucket[]> =>
+      ipcRenderer.invoke('dashboard:chartData', period),
+    paymentBreakdown: (period: DashboardPeriod): Promise<PaymentMethodBreakdown[]> =>
+      ipcRenderer.invoke('dashboard:paymentBreakdown', period),
     topProducts: (limit?: number): Promise<TopProduct[]> =>
       ipcRenderer.invoke('dashboard:topProducts', limit),
-    sevenDaySales: (): Promise<DailySales[]> => ipcRenderer.invoke('dashboard:sevenDaySales'),
     lowStock: (threshold?: number): Promise<ProductRecord[]> =>
       ipcRenderer.invoke('dashboard:lowStock', threshold)
   },

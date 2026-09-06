@@ -20,7 +20,7 @@ import { registerDashboardHandlers } from './register-dashboard-handlers'
 import { createDbClient, type DbClient } from '../database/client'
 import { createProduct } from '../database/repositories/product-repository'
 import { completeSale } from '../database/repositories/sale-repository'
-import type { DashboardSummary } from '../../shared/dashboard'
+import type { DashboardStats, ChartBucket, PaymentMethodBreakdown } from '../../shared/dashboard'
 
 describe('registerDashboardHandlers', () => {
   let dbFile: string
@@ -38,22 +38,45 @@ describe('registerDashboardHandlers', () => {
     if (fs.existsSync(dbFile)) fs.rmSync(dbFile)
   })
 
-  it('registers all four dashboard channels', () => {
-    expect(handlers.has('dashboard:summary')).toBe(true)
+  it('registers all five dashboard channels', () => {
+    expect(handlers.has('dashboard:stats')).toBe(true)
+    expect(handlers.has('dashboard:chartData')).toBe(true)
+    expect(handlers.has('dashboard:paymentBreakdown')).toBe(true)
     expect(handlers.has('dashboard:topProducts')).toBe(true)
-    expect(handlers.has('dashboard:sevenDaySales')).toBe(true)
     expect(handlers.has('dashboard:lowStock')).toBe(true)
   })
 
-  it('dashboard:summary reflects a completed sale', () => {
+  it("dashboard:stats reflects a completed sale for period 'today'", () => {
     const coke = createProduct(client.db, { barcode: '111', name: 'Coke', priceCents: 2000, stock: 50 })
     completeSale(client.db, [
       { productId: coke.id, productName: coke.name, unitPriceCents: coke.priceCents, quantity: 2 }
     ], 'CASH')
 
-    const summaryHandler = handlers.get('dashboard:summary')!
-    const summary = summaryHandler({}) as DashboardSummary
-    expect(summary).toEqual({ salesTodayCents: 4000, orderCountToday: 1, unitsSoldToday: 2 })
+    const statsHandler = handlers.get('dashboard:stats')!
+    const stats = statsHandler({}, 'today') as DashboardStats
+    expect(stats.current).toEqual({
+      salesCents: 4000,
+      orderCount: 1,
+      unitsSold: 2,
+      avgOrderValueCents: 4000
+    })
+  })
+
+  it("dashboard:chartData returns 24 buckets for 'today' and 7 for '7days'", () => {
+    const chartDataHandler = handlers.get('dashboard:chartData')!
+    expect((chartDataHandler({}, 'today') as ChartBucket[])).toHaveLength(24)
+    expect((chartDataHandler({}, '7days') as ChartBucket[])).toHaveLength(7)
+  })
+
+  it('dashboard:paymentBreakdown reflects a completed sale', () => {
+    const coke = createProduct(client.db, { barcode: '111', name: 'Coke', priceCents: 2000, stock: 50 })
+    completeSale(client.db, [
+      { productId: coke.id, productName: coke.name, unitPriceCents: coke.priceCents, quantity: 1 }
+    ], 'QR')
+
+    const breakdownHandler = handlers.get('dashboard:paymentBreakdown')!
+    const result = breakdownHandler({}, 'today') as PaymentMethodBreakdown[]
+    expect(result).toEqual([{ paymentMethod: 'QR', totalCents: 2000, count: 1 }])
   })
 
   it('dashboard:topProducts passes a given limit through', () => {

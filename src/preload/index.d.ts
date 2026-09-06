@@ -2,7 +2,13 @@ import { ElectronAPI } from '@electron-toolkit/preload'
 import type { CreateProductInput, ProductRecord, UpdateProductInput } from '../shared/product'
 import type { CategoryRecord } from '../shared/category'
 import type { SaleLineInput, SaleRecord, PaymentMethod } from '../shared/sale'
-import type { DashboardSummary, TopProduct, DailySales } from '../shared/dashboard'
+import type {
+  DashboardPeriod,
+  DashboardStats,
+  ChartBucket,
+  PaymentMethodBreakdown,
+  TopProduct
+} from '../shared/dashboard'
 import type { SaleListItem } from '../shared/salesHistory'
 
 declare global {
@@ -30,9 +36,10 @@ declare global {
         ) => Promise<SaleRecord>
       }
       dashboard: {
-        summary: () => Promise<DashboardSummary>
+        stats: (period: DashboardPeriod) => Promise<DashboardStats>
+        chartData: (period: DashboardPeriod) => Promise<ChartBucket[]>
+        paymentBreakdown: (period: DashboardPeriod) => Promise<PaymentMethodBreakdown[]>
         topProducts: (limit?: number) => Promise<TopProduct[]>
-        sevenDaySales: () => Promise<DailySales[]>
         lowStock: (threshold?: number) => Promise<ProductRecord[]>
       }
       salesHistory: {
