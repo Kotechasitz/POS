@@ -18,7 +18,7 @@ import {
   getLowStockProducts,
   getTopProducts
 } from './dashboard-repository'
-import type { SaleLineInput } from '../../../shared/sale'
+import type { SaleLineInput, PaymentMethod, SaleStatus } from '../../../shared/sale'
 
 function daysAgoIso(days: number, hour = 12): string {
   const date = new Date()
@@ -32,8 +32,8 @@ function insertRawSale(
   id: string,
   totalCents: number,
   createdAt: string,
-  status: 'COMPLETED' | 'VOID' = 'COMPLETED',
-  paymentMethod: 'CASH' | 'QR' | 'CARD' = 'CASH'
+  status: SaleStatus = 'COMPLETED',
+  paymentMethod: PaymentMethod = 'CASH'
 ): void {
   client.db.insert(sales).values({ id, totalCents, status, paymentMethod, createdAt }).run()
 }
