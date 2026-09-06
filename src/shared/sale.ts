@@ -19,10 +19,14 @@ export const PAYMENT_METHODS = ['CASH', 'QR', 'CARD'] as const
 
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number]
 
+export const SALE_STATUSES = ['COMPLETED', 'VOID'] as const
+
+export type SaleStatus = (typeof SALE_STATUSES)[number]
+
 export interface SaleRecord {
   id: string
   totalCents: number
-  status: string
+  status: SaleStatus
   paymentMethod: PaymentMethod
   discountCents: number
   createdAt: string

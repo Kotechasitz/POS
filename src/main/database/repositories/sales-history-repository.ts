@@ -3,7 +3,7 @@ import { eq, sql } from 'drizzle-orm'
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import { sales, saleItems, saleVoids, products, stockTransactions } from '../schema'
 import type { SaleListItem } from '../../../shared/salesHistory'
-import type { SaleRecord, PaymentMethod } from '../../../shared/sale'
+import type { SaleRecord, PaymentMethod, SaleStatus } from '../../../shared/sale'
 import { SaleValidationError } from './sale-repository'
 import { ProductNotFoundError } from './product-repository'
 
@@ -26,7 +26,12 @@ export function listSales(db: BetterSQLite3Database): SaleListItem[] {
   // Number oldest-to-newest (stable, creation-order bill numbers), then
   // reverse so the returned list itself is newest-first for display.
   return rows
-    .map((row, index) => ({ ...row, paymentMethod: row.paymentMethod as PaymentMethod, billNumber: index + 1 }))
+    .map((row, index) => ({
+      ...row,
+      status: row.status as SaleStatus,
+      paymentMethod: row.paymentMethod as PaymentMethod,
+      billNumber: index + 1
+    }))
     .reverse()
 }
 
@@ -44,7 +49,7 @@ export function getSaleWithItems(
   return {
     id: sale.id,
     totalCents: sale.totalCents,
-    status: sale.status,
+    status: sale.status as SaleStatus,
     paymentMethod: sale.paymentMethod as PaymentMethod,
     discountCents: sale.discountCents,
     createdAt: sale.createdAt,
@@ -82,7 +87,7 @@ export function voidSale(db: BetterSQLite3Database, saleId: string, reason: stri
     if (!sale) {
       throw new SaleNotFoundError(saleId)
     }
-    if (sale.status === 'VOID') {
+    if (sale.status !== 'COMPLETED') {
       throw new SaleAlreadyVoidError(saleId)
     }
 

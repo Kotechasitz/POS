@@ -1,4 +1,4 @@
-import type { PaymentMethod } from './sale'
+import type { PaymentMethod, SaleStatus } from './sale'
 
 export interface SaleListItem {
   id: string
@@ -6,6 +6,6 @@ export interface SaleListItem {
   totalCents: number
   createdAt: string
   itemCount: number
-  status: string
+  status: SaleStatus
   paymentMethod: PaymentMethod
 }
