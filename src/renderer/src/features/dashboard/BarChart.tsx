@@ -1,43 +1,29 @@
 import { Money } from '../../../../shared/money'
-import type { DailySales } from '../../../../shared/dashboard'
+import type { ChartBucket } from '../../../../shared/dashboard'
 
 export interface BarChartProps {
-  data: DailySales[]
+  data: ChartBucket[]
+  ariaLabel: string
 }
 
 const WIDTH = 560
 const HEIGHT = 140
 const BAR_GAP = 12
 
-// Parses a 'YYYY-MM-DD' string as a local date, not UTC — `new Date(str)`
-// parses that format as UTC midnight, which can render as the wrong
-// weekday depending on the viewer's timezone offset.
-function parseDateOnlyLocal(dateStr: string): Date {
-  const [year, month, day] = dateStr.split('-').map(Number)
-  return new Date(year, month - 1, day)
-}
-
-function BarChart({ data }: BarChartProps): React.JSX.Element {
-  const maxCents = Math.max(1, ...data.map((day) => day.totalCents))
+function BarChart({ data, ariaLabel }: BarChartProps): React.JSX.Element {
+  const maxCents = Math.max(1, ...data.map((bucket) => bucket.totalCents))
   const count = Math.max(data.length, 1)
   const barWidth = (WIDTH - BAR_GAP * (count - 1)) / count
 
   return (
-    <svg
-      viewBox={`0 0 ${WIDTH} ${HEIGHT + 24}`}
-      aria-label="Sales for the last 7 days"
-      className="bar-chart"
-    >
-      {data.map((day, index) => {
-        const barHeight = (day.totalCents / maxCents) * HEIGHT
+    <svg viewBox={`0 0 ${WIDTH} ${HEIGHT + 24}`} aria-label={ariaLabel} className="bar-chart">
+      {data.map((bucket, index) => {
+        const barHeight = (bucket.totalCents / maxCents) * HEIGHT
         const x = index * (barWidth + BAR_GAP)
         const y = HEIGHT - barHeight
-        const label = parseDateOnlyLocal(day.date).toLocaleDateString(undefined, {
-          weekday: 'short'
-        })
         return (
-          <g key={day.date}>
-            <title>{`${day.date}: ${Money.fromCents(day.totalCents).format()}`}</title>
+          <g key={`${bucket.label}-${index}`}>
+            <title>{`${bucket.label}: ${Money.fromCents(bucket.totalCents).format()}`}</title>
             <rect x={x} y={y} width={barWidth} height={barHeight} className="bar-chart-bar" />
             <text
               x={x + barWidth / 2}
@@ -45,7 +31,7 @@ function BarChart({ data }: BarChartProps): React.JSX.Element {
               textAnchor="middle"
               className="bar-chart-label"
             >
-              {label}
+              {bucket.label}
             </text>
           </g>
         )
