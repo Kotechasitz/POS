@@ -50,7 +50,10 @@ export function registerSalesHistoryHandlers(db: BetterSQLite3Database): void {
       })
 
       const csv = toCsv(['Bill #', 'Date', 'Time', 'Payment Method', 'Items', 'Total', 'Status'], rows)
-      fs.writeFileSync(result.filePath, csv, 'utf-8')
+      // Prepend a UTF-8 BOM so Excel on a non-UTF-8-default Windows locale
+      // decodes non-ASCII content (Thai product names, the ฿ symbol from
+      // Money.format()) correctly when the file is double-click-opened.
+      fs.writeFileSync(result.filePath, '\uFEFF' + csv, 'utf-8')
 
       return { canceled: false }
     }

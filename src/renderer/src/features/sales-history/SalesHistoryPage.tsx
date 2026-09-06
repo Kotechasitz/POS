@@ -28,6 +28,7 @@ function SalesHistoryPage(): React.JSX.Element {
   const [voidTarget, setVoidTarget] = useState<SaleListItem | null>(null)
   const [voiding, setVoiding] = useState(false)
   const [voidError, setVoidError] = useState<string | null>(null)
+  const [exportError, setExportError] = useState<string | null>(null)
 
   const filteredSales = sales.filter((sale) => {
     if (paymentFilter && sale.paymentMethod !== paymentFilter) {
@@ -90,7 +91,12 @@ function SalesHistoryPage(): React.JSX.Element {
   }
 
   async function handleExport(): Promise<void> {
-    await window.api.salesHistory.exportCsv(filteredSales)
+    try {
+      setExportError(null)
+      await window.api.salesHistory.exportCsv(filteredSales)
+    } catch (err) {
+      setExportError(toUserMessage(err))
+    }
   }
 
   return (
@@ -159,6 +165,11 @@ function SalesHistoryPage(): React.JSX.Element {
           {detailError}
         </p>
       )}
+      {exportError && (
+        <p role="alert" className="alert alert-danger">
+          {exportError}
+        </p>
+      )}
 
       <div className="products-card">
         {loading ? (
@@ -168,8 +179,12 @@ function SalesHistoryPage(): React.JSX.Element {
           </div>
         ) : filteredSales.length === 0 ? (
           <div className="empty-state">
-            <h2>No sales yet</h2>
-            <p>Completed sales will show up here.</p>
+            <h2>{sales.length === 0 ? 'No sales yet' : 'No matching sales'}</h2>
+            <p>
+              {sales.length === 0
+                ? 'Completed sales will show up here.'
+                : 'Try widening the filters above.'}
+            </p>
           </div>
         ) : (
           <table className="products-table">

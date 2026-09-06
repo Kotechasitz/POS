@@ -212,6 +212,34 @@ describe('SalesHistoryPage', () => {
     expect(screen.queryByText('#3')).not.toBeInTheDocument()
   })
 
+  it('filters by "To date" boundary: includes the exact day, excludes the day before', async () => {
+    const user = userEvent.setup()
+    // Same local-Date-based construction as the "From date" local-day test
+    // above, so this is correct regardless of the machine's timezone offset.
+    const localSept5 = new Date(2026, 8, 5, 14, 0, 0)
+    const toDateSale: SaleListItem = {
+      id: 'sale-4',
+      billNumber: 4,
+      totalCents: 700,
+      createdAt: localSept5.toISOString(),
+      itemCount: 1,
+      status: 'COMPLETED',
+      paymentMethod: 'CARD'
+    }
+    ;(window.api.salesHistory.list as ReturnType<typeof vi.fn>).mockResolvedValue([toDateSale])
+    render(<SalesHistoryPage />)
+    await waitFor(() => expect(screen.getByText('#4')).toBeInTheDocument())
+
+    // A To date of its own local day (2026-09-05) must include it.
+    await user.type(screen.getByLabelText('To date'), '2026-09-05')
+    expect(screen.getByText('#4')).toBeInTheDocument()
+
+    // A To date of the day before (2026-09-04) must exclude it.
+    await user.clear(screen.getByLabelText('To date'))
+    await user.type(screen.getByLabelText('To date'), '2026-09-04')
+    expect(screen.queryByText('#4')).not.toBeInTheDocument()
+  })
+
   it('shows a Void button only on Completed rows', async () => {
     ;(window.api.salesHistory.list as ReturnType<typeof vi.fn>).mockResolvedValue([
       list[0],
@@ -299,5 +327,32 @@ describe('SalesHistoryPage', () => {
     await waitFor(() =>
       expect(window.api.salesHistory.exportCsv).toHaveBeenCalledWith([voidedList])
     )
+  })
+
+  it('shows an error if the export fails', async () => {
+    const user = userEvent.setup()
+    ;(window.api.salesHistory.exportCsv as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error("Error invoking remote method 'salesHistory:exportCsv': Disk is full")
+    )
+    render(<SalesHistoryPage />)
+    await waitFor(() => expect(screen.getByText('#1')).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: 'Export' }))
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Disk is full'))
+    expect(screen.getByRole('alert')).not.toHaveTextContent('Error invoking remote method')
+  })
+
+  it('shows "No matching sales" instead of "No sales yet" when filters exclude every sale', async () => {
+    const user = userEvent.setup()
+    render(<SalesHistoryPage />)
+    await waitFor(() => expect(screen.getByText('#1')).toBeInTheDocument())
+    // list[0].createdAt is 2026-09-03 — filtering From date to a later day
+    // excludes it while sales still has data.
+    await user.type(screen.getByLabelText('From date'), '2026-09-10')
+
+    await waitFor(() => expect(screen.getByText('No matching sales')).toBeInTheDocument())
+    expect(screen.getByText('Try widening the filters above.')).toBeInTheDocument()
+    expect(screen.queryByText('No sales yet')).not.toBeInTheDocument()
   })
 })

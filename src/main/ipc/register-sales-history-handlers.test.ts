@@ -20,7 +20,7 @@ vi.mock('electron', () => ({
 import { dialog } from 'electron'
 import { registerSalesHistoryHandlers } from './register-sales-history-handlers'
 import { createDbClient, type DbClient } from '../database/client'
-import { createProduct } from '../database/repositories/product-repository'
+import { createProduct, getProductById } from '../database/repositories/product-repository'
 import { completeSale } from '../database/repositories/sale-repository'
 import { SaleAlreadyVoidError } from '../database/repositories/sales-history-repository'
 import type { SaleRecord } from '../../shared/sale'
@@ -91,12 +91,15 @@ describe('registerSalesHistoryHandlers', () => {
       [{ productId: water.id, productName: water.name, unitPriceCents: water.priceCents, quantity: 2 }],
       'CASH'
     )
+    const stockAfterSale = getProductById(client.db, water.id)?.stock
+    expect(stockAfterSale).toBe(3)
 
     const voidHandler = handlers.get('salesHistory:void')!
     const voided = voidHandler({}, sale.id, 'Customer changed their mind') as SaleRecord
 
     expect(voided.status).toBe('VOID')
     expect(voided.voidReason).toBe('Customer changed their mind')
+    expect(getProductById(client.db, water.id)?.stock).toBe(5)
   })
 
   it('salesHistory:void propagates SaleAlreadyVoidError on a second void', () => {
@@ -131,6 +134,7 @@ describe('registerSalesHistoryHandlers', () => {
 
     expect(result).toEqual({ canceled: false })
     const written = fs.readFileSync(tmpPath, 'utf-8')
+    expect(written.startsWith('\uFEFF')).toBe(true)
     expect(written).toContain('Bill #,Date,Time,Payment Method,Items,Total,Status')
     expect(written).toContain('2x Water')
     fs.rmSync(tmpPath)

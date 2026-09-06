@@ -274,12 +274,14 @@ describe('voidSale', () => {
       [{ productId: water.id, productName: water.name, unitPriceCents: water.priceCents, quantity: 1 }],
       'CASH'
     )
+    const stockBeforeVoid = getProductById(client.db, water.id)?.stock
 
     expect(() => voidSale(client.db, sale.id, '   ')).toThrow(SaleValidationError)
 
     const unchanged = getSaleWithItems(client.db, sale.id)
     expect(unchanged?.status).toBe('COMPLETED')
     expect(client.db.select().from(saleVoids).where(eq(saleVoids.saleId, sale.id)).all()).toHaveLength(0)
+    expect(getProductById(client.db, water.id)?.stock).toBe(stockBeforeVoid)
   })
 
   it('throws SaleNotFoundError for a sale id that does not exist', () => {

@@ -30,4 +30,24 @@ describe('toCsv', () => {
   it('handles an empty rows array, producing just the header line', () => {
     expect(toCsv(['A', 'B'], [])).toBe('A,B')
   })
+
+  it('prefixes a field starting with "=" with a leading apostrophe to prevent formula injection', () => {
+    expect(toCsv(['H'], [['=SUM(A1:A9)']])).toBe("H\r\n'=SUM(A1:A9)")
+  })
+
+  it('prefixes a field starting with "+" with a leading apostrophe to prevent formula injection', () => {
+    expect(toCsv(['H'], [['+1234']])).toBe("H\r\n'+1234")
+  })
+
+  it('prefixes a field starting with "-" with a leading apostrophe to prevent formula injection', () => {
+    expect(toCsv(['H'], [['-1234']])).toBe("H\r\n'-1234")
+  })
+
+  it('prefixes a field starting with "@" with a leading apostrophe to prevent formula injection', () => {
+    expect(toCsv(['H'], [['@SUM(1)']])).toBe("H\r\n'@SUM(1)")
+  })
+
+  it('leaves a normal field with no leading special character untouched', () => {
+    expect(toCsv(['H'], [['Coke Zero']])).toBe('H\r\nCoke Zero')
+  })
 })
