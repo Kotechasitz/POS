@@ -17,11 +17,13 @@ describe('App', () => {
         complete: vi.fn()
       },
       dashboard: {
-        summary: vi
-          .fn()
-          .mockResolvedValue({ salesTodayCents: 0, orderCountToday: 0, unitsSoldToday: 0 }),
+        stats: vi.fn().mockResolvedValue({
+          current: { salesCents: 0, orderCount: 0, unitsSold: 0, avgOrderValueCents: 0 },
+          previous: { salesCents: 0, orderCount: 0, unitsSold: 0, avgOrderValueCents: 0 }
+        }),
+        chartData: vi.fn().mockResolvedValue([]),
+        paymentBreakdown: vi.fn().mockResolvedValue([]),
         topProducts: vi.fn().mockResolvedValue([]),
-        sevenDaySales: vi.fn().mockResolvedValue([]),
         lowStock: vi.fn().mockResolvedValue([])
       },
       salesHistory: {
@@ -53,7 +55,7 @@ describe('App', () => {
 
     await user.click(screen.getByRole('button', { name: 'Dashboard' }))
 
-    await waitFor(() => expect(screen.getByText('Sales Today')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Total Sales')).toBeInTheDocument())
   })
 
   it('switches to the Sales History screen when its tab is clicked', async () => {
@@ -69,10 +71,10 @@ describe('App', () => {
     const user = userEvent.setup()
     render(<App />)
     await user.click(screen.getByRole('button', { name: 'Dashboard' }))
-    await waitFor(() => expect(window.api.dashboard.summary).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(window.api.dashboard.stats).toHaveBeenCalledTimes(1))
     await user.click(screen.getByRole('button', { name: 'POS' }))
     await user.click(screen.getByRole('button', { name: 'Dashboard' }))
-    await waitFor(() => expect(window.api.dashboard.summary).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(window.api.dashboard.stats).toHaveBeenCalledTimes(2))
   })
 
   it('switches back to the POS screen', async () => {
