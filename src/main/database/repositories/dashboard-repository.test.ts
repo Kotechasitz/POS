@@ -8,29 +8,42 @@ vi.mock('@electron-toolkit/utils', () => ({ is: isMock }))
 vi.mock('electron', () => ({ app: { getPath: vi.fn() } }))
 
 import { createDbClient, type DbClient } from '../client'
-import { sales, saleItems } from '../schema'
+import { sales } from '../schema'
 import { createProduct, updateProduct } from './product-repository'
 import { completeSale } from './sale-repository'
 import {
-  getDashboardSummary,
+  getDashboardStats,
+  getSalesChartData,
+  getPaymentMethodBreakdown,
   getLowStockProducts,
-  getTopProducts,
-  getSevenDaySales
+  getTopProducts
 } from './dashboard-repository'
 import type { SaleLineInput } from '../../../shared/sale'
 
-function daysAgoIso(days: number): string {
+function daysAgoIso(days: number, hour = 12): string {
   const date = new Date()
   date.setDate(date.getDate() - days)
+  date.setHours(hour, 0, 0, 0)
   return date.toISOString()
 }
 
-describe('getDashboardSummary', () => {
+function insertRawSale(
+  client: DbClient,
+  id: string,
+  totalCents: number,
+  createdAt: string,
+  status: 'COMPLETED' | 'VOID' = 'COMPLETED',
+  paymentMethod: 'CASH' | 'QR' | 'CARD' = 'CASH'
+): void {
+  client.db.insert(sales).values({ id, totalCents, status, paymentMethod, createdAt }).run()
+}
+
+describe('getDashboardStats', () => {
   let dbFile: string
   let client: DbClient
 
   beforeEach(() => {
-    dbFile = path.join(os.tmpdir(), `pos-dashboard-repo-${Date.now()}-${Math.random()}.db`)
+    dbFile = path.join(os.tmpdir(), `pos-dashboard-stats-${Date.now()}-${Math.random()}.db`)
     client = createDbClient(dbFile, path.resolve(__dirname, '../../../../drizzle'))
   })
 
@@ -39,66 +52,75 @@ describe('getDashboardSummary', () => {
     if (fs.existsSync(dbFile)) fs.rmSync(dbFile)
   })
 
-  it('returns zeros when there are no sales at all', () => {
-    const summary = getDashboardSummary(client.db)
-    expect(summary).toEqual({ salesTodayCents: 0, orderCountToday: 0, unitsSoldToday: 0 })
+  it("'today': returns zeros for both periods when there are no sales at all", () => {
+    const result = getDashboardStats(client.db, 'today')
+    expect(result).toEqual({
+      current: { salesCents: 0, orderCount: 0, unitsSold: 0, avgOrderValueCents: 0 },
+      previous: { salesCents: 0, orderCount: 0, unitsSold: 0, avgOrderValueCents: 0 }
+    })
   })
 
-  it("sums today's sales, counts orders, and sums units sold across multiple sales", () => {
+  it("'today': current is today's sales, previous is yesterday's, computed correctly with an average", () => {
     const coke = createProduct(client.db, { barcode: '111', name: 'Coke', priceCents: 2000, stock: 50 })
-    const water = createProduct(client.db, { barcode: '222', name: 'Water', priceCents: 1000, stock: 50 })
-
-    const line1: SaleLineInput = {
+    const line: SaleLineInput = {
       productId: coke.id,
       productName: coke.name,
       unitPriceCents: coke.priceCents,
       quantity: 2
     }
-    const line2: SaleLineInput = {
-      productId: water.id,
-      productName: water.name,
-      unitPriceCents: water.priceCents,
-      quantity: 3
-    }
-    completeSale(client.db, [line1], 'CASH') // 4000 cents, 2 units
-    completeSale(client.db, [line2], 'CASH') // 3000 cents, 3 units
+    completeSale(client.db, [line], 'CASH') // today, 4000 cents, 2 units
+    completeSale(client.db, [line], 'CASH') // today, 4000 cents, 2 units
+    insertRawSale(client, 'yesterday-sale', 3000, daysAgoIso(1))
 
-    const summary = getDashboardSummary(client.db)
-    expect(summary).toEqual({ salesTodayCents: 7000, orderCountToday: 2, unitsSoldToday: 5 })
+    const result = getDashboardStats(client.db, 'today')
+    expect(result.current).toEqual({
+      salesCents: 8000,
+      orderCount: 2,
+      unitsSold: 4,
+      avgOrderValueCents: 4000
+    })
+    expect(result.previous).toEqual({
+      salesCents: 3000,
+      orderCount: 1,
+      unitsSold: 0,
+      avgOrderValueCents: 3000
+    })
   })
 
-  it("excludes sales from before today", () => {
-    const coke = createProduct(client.db, { barcode: '111', name: 'Coke', priceCents: 2000, stock: 50 })
-    // Directly insert a sale timestamped yesterday — completeSale always uses
-    // the real current time, so a fabricated old row is inserted straight
-    // into the table to control the date deterministically.
-    client.db
-      .insert(sales)
-      .values({ id: 'yesterday-sale', totalCents: 9999, status: 'COMPLETED', createdAt: daysAgoIso(1) })
-      .run()
-    client.db
-      .insert(saleItems)
-      .values({
-        id: 'yesterday-item',
-        saleId: 'yesterday-sale',
-        productId: coke.id,
-        productName: coke.name,
-        priceCents: 9999,
-        quantity: 7,
-        totalCents: 9999
-      })
-      .run()
-
-    const summary = getDashboardSummary(client.db)
-    expect(summary).toEqual({ salesTodayCents: 0, orderCountToday: 0, unitsSoldToday: 0 })
+  it("'today': avgOrderValueCents is 0 when a period has no orders, not a division error", () => {
+    const result = getDashboardStats(client.db, 'today')
+    expect(result.current.avgOrderValueCents).toBe(0)
+    expect(result.previous.avgOrderValueCents).toBe(0)
   })
 
-  it('buckets "today" by the local calendar day, not the UTC calendar day', () => {
+  it("'today': excludes sales whose status is not COMPLETED", () => {
+    insertRawSale(client, 'void-sale', 5000, new Date().toISOString(), 'VOID')
+    const result = getDashboardStats(client.db, 'today')
+    expect(result.current.salesCents).toBe(0)
+    expect(result.current.orderCount).toBe(0)
+  })
+
+  it("'7days': current is the trailing 7 local days, previous is the 7 immediately before", () => {
+    insertRawSale(client, 'today-sale', 1000, daysAgoIso(0))
+    insertRawSale(client, 'six-days-ago', 2000, daysAgoIso(6))
+    insertRawSale(client, 'seven-days-ago', 9999, daysAgoIso(7))
+    insertRawSale(client, 'thirteen-days-ago', 3000, daysAgoIso(13))
+    insertRawSale(client, 'fourteen-days-ago', 9999, daysAgoIso(14))
+
+    const result = getDashboardStats(client.db, '7days')
+    // Current window: days 0-6 ago -> today-sale + six-days-ago = 3000
+    expect(result.current.salesCents).toBe(3000)
+    expect(result.current.orderCount).toBe(2)
+    // Previous window: days 7-13 ago -> seven-days-ago + thirteen-days-ago = 12999
+    expect(result.previous.salesCents).toBe(12999)
+    expect(result.previous.orderCount).toBe(2)
+  })
+
+  it("buckets 'today' by the local calendar day, not the UTC calendar day", () => {
     const referenceDate = new Date()
     const offsetMinutes = referenceDate.getTimezoneOffset()
     if (offsetMinutes === 0) {
-      // No local/UTC distinction exists to test on a UTC-clocked machine —
-      // the other getDashboardSummary tests still cover correctness here.
+      // No local/UTC distinction exists to test on a UTC-clocked machine.
       return
     }
 
@@ -110,47 +132,136 @@ describe('getDashboardSummary', () => {
     const utcStart = new Date(
       Date.UTC(referenceDate.getUTCFullYear(), referenceDate.getUTCMonth(), referenceDate.getUTCDate())
     )
-
     if (localStart.getTime() === utcStart.getTime()) {
-      // The two boundaries happen to coincide for this instant — nothing to
-      // distinguish right now.
       return
     }
 
-    // Place the fabricated sale 1ms before whichever boundary is later, so
-    // it falls strictly between the two candidate "start of today" instants
-    // — "today" under one interpretation, "yesterday" (or "tomorrow") under
-    // the other.
     const laterBoundary = Math.max(localStart.getTime(), utcStart.getTime())
     const testInstant = new Date(laterBoundary - 1)
+    insertRawSale(client, 'tz-boundary-sale', 9999, testInstant.toISOString())
 
-    createProduct(client.db, { barcode: 'tzboundary', name: 'Coke', priceCents: 2000, stock: 50 })
-    client.db
-      .insert(sales)
-      .values({
-        id: 'tz-boundary-sale',
-        totalCents: 9999,
-        status: 'COMPLETED',
-        createdAt: testInstant.toISOString()
-      })
-      .run()
-
-    // What a CORRECT local-day implementation should decide for this instant:
     const expectedIncluded = testInstant.getTime() >= localStart.getTime()
+    const result = getDashboardStats(client.db, 'today', referenceDate)
+    expect(result.current.salesCents).toBe(expectedIncluded ? 9999 : 0)
+  })
+})
 
-    const summary = getDashboardSummary(client.db, referenceDate)
-    expect(summary.salesTodayCents).toBe(expectedIncluded ? 9999 : 0)
+describe('getSalesChartData', () => {
+  let dbFile: string
+  let client: DbClient
+
+  beforeEach(() => {
+    dbFile = path.join(os.tmpdir(), `pos-dashboard-chart-${Date.now()}-${Math.random()}.db`)
+    client = createDbClient(dbFile, path.resolve(__dirname, '../../../../drizzle'))
   })
 
-  it('excludes sales whose status is not COMPLETED', () => {
-    client.db
-      .insert(sales)
-      .values({ id: 'cancelled-sale', totalCents: 5000, status: 'CANCELLED', createdAt: new Date().toISOString() })
-      .run()
+  afterEach(() => {
+    client.sqlite.close()
+    if (fs.existsSync(dbFile)) fs.rmSync(dbFile)
+  })
 
-    const summary = getDashboardSummary(client.db)
-    expect(summary.salesTodayCents).toBe(0)
-    expect(summary.orderCountToday).toBe(0)
+  it("'today': returns exactly 24 hourly buckets, all zero when there are no sales", () => {
+    const result = getSalesChartData(client.db, 'today')
+    expect(result).toHaveLength(24)
+    expect(result.every((bucket) => bucket.totalCents === 0)).toBe(true)
+  })
+
+  it("'today': places a sale in the bucket matching its local hour", () => {
+    const referenceDate = new Date()
+    const nineAm = new Date(
+      referenceDate.getFullYear(),
+      referenceDate.getMonth(),
+      referenceDate.getDate(),
+      9,
+      30
+    )
+    insertRawSale(client, 'nine-am-sale', 1500, nineAm.toISOString())
+
+    const result = getSalesChartData(client.db, 'today', referenceDate)
+    expect(result[9].totalCents).toBe(1500)
+    expect(result.filter((b) => b.totalCents > 0)).toHaveLength(1)
+  })
+
+  it("'today': labels each hourly bucket using the local hour, not UTC", () => {
+    const referenceDate = new Date(2026, 8, 5)
+    const expectedHour3Label = new Date(2026, 8, 5, 3).toLocaleTimeString(undefined, {
+      hour: 'numeric'
+    })
+    const result = getSalesChartData(client.db, 'today', referenceDate)
+    expect(result[3].label).toBe(expectedHour3Label)
+  })
+
+  it("'7days': returns exactly 7 daily buckets, oldest first, matching getDashboardStats' current window", () => {
+    insertRawSale(client, 'today-sale', 1500, daysAgoIso(0))
+    insertRawSale(client, 'six-days-ago', 2500, daysAgoIso(6))
+    insertRawSale(client, 'seven-days-ago', 9999, daysAgoIso(7))
+
+    const result = getSalesChartData(client.db, '7days')
+    expect(result).toHaveLength(7)
+    expect(result[6].totalCents).toBe(1500) // today is the last bucket
+    expect(result[0].totalCents).toBe(2500) // 6 days ago is the first bucket
+    expect(result.reduce((sum, b) => sum + b.totalCents, 0)).toBe(4000) // 7-days-ago excluded
+  })
+
+  it("'7days': labels each bucket with its local weekday, not UTC", () => {
+    const referenceDate = new Date(2026, 8, 5) // a Saturday
+    const expectedLastLabel = new Date(2026, 8, 5).toLocaleDateString(undefined, {
+      weekday: 'short'
+    })
+    const result = getSalesChartData(client.db, '7days', referenceDate)
+    expect(result[6].label).toBe(expectedLastLabel)
+  })
+})
+
+describe('getPaymentMethodBreakdown', () => {
+  let dbFile: string
+  let client: DbClient
+
+  beforeEach(() => {
+    dbFile = path.join(os.tmpdir(), `pos-dashboard-paymentbreakdown-${Date.now()}-${Math.random()}.db`)
+    client = createDbClient(dbFile, path.resolve(__dirname, '../../../../drizzle'))
+  })
+
+  afterEach(() => {
+    client.sqlite.close()
+    if (fs.existsSync(dbFile)) fs.rmSync(dbFile)
+  })
+
+  it('returns an empty array when there are no sales in the period', () => {
+    expect(getPaymentMethodBreakdown(client.db, 'today')).toEqual([])
+  })
+
+  it('groups by payment method, summing totals and counting orders, ordered by total descending', () => {
+    const coke = createProduct(client.db, { barcode: '111', name: 'Coke', priceCents: 2000, stock: 50 })
+    const line: SaleLineInput = {
+      productId: coke.id,
+      productName: coke.name,
+      unitPriceCents: coke.priceCents,
+      quantity: 1
+    }
+    completeSale(client.db, [line], 'CASH') // 2000
+    completeSale(client.db, [line], 'CASH') // 2000
+    completeSale(client.db, [line], 'QR') // 2000
+    completeSale(client.db, [{ ...line, quantity: 5 }], 'CARD') // 10000
+
+    const result = getPaymentMethodBreakdown(client.db, 'today')
+    expect(result).toEqual([
+      { paymentMethod: 'CARD', totalCents: 10000, count: 1 },
+      { paymentMethod: 'CASH', totalCents: 4000, count: 2 },
+      { paymentMethod: 'QR', totalCents: 2000, count: 1 }
+    ])
+  })
+
+  it('excludes VOID sales from the breakdown', () => {
+    insertRawSale(client, 'void-sale', 5000, new Date().toISOString(), 'VOID', 'QR')
+    expect(getPaymentMethodBreakdown(client.db, 'today')).toEqual([])
+  })
+
+  it("is scoped to the current period only, matching getDashboardStats' current window", () => {
+    insertRawSale(client, 'yesterday-sale', 5000, daysAgoIso(1), 'COMPLETED', 'QR')
+    expect(getPaymentMethodBreakdown(client.db, 'today')).toEqual([])
+    const sevenDayResult = getPaymentMethodBreakdown(client.db, '7days')
+    expect(sevenDayResult).toEqual([{ paymentMethod: 'QR', totalCents: 5000, count: 1 }])
   })
 })
 
@@ -256,58 +367,3 @@ describe('getTopProducts', () => {
   })
 })
 
-describe('getSevenDaySales', () => {
-  let dbFile: string
-  let client: DbClient
-
-  beforeEach(() => {
-    dbFile = path.join(os.tmpdir(), `pos-dashboard-repo-7day-${Date.now()}-${Math.random()}.db`)
-    client = createDbClient(dbFile, path.resolve(__dirname, '../../../../drizzle'))
-  })
-
-  afterEach(() => {
-    client.sqlite.close()
-    if (fs.existsSync(dbFile)) fs.rmSync(dbFile)
-  })
-
-  it('returns exactly 7 entries, oldest first, all zero when there are no sales', () => {
-    const result = getSevenDaySales(client.db)
-    expect(result).toHaveLength(7)
-    expect(result.every((day) => day.totalCents === 0)).toBe(true)
-    expect(new Date(result[0].date).getTime()).toBeLessThan(new Date(result[6].date).getTime())
-  })
-
-  it("includes today's sales in the last bucket", () => {
-    client.db
-      .insert(sales)
-      .values({ id: 'today-sale', totalCents: 1500, status: 'COMPLETED', createdAt: new Date().toISOString() })
-      .run()
-
-    const result = getSevenDaySales(client.db)
-    expect(result[6].totalCents).toBe(1500)
-  })
-
-  it('includes a sale from exactly 6 days ago in the first bucket', () => {
-    const sixDaysAgo = new Date()
-    sixDaysAgo.setDate(sixDaysAgo.getDate() - 6)
-    client.db
-      .insert(sales)
-      .values({ id: 'six-days-ago-sale', totalCents: 2500, status: 'COMPLETED', createdAt: sixDaysAgo.toISOString() })
-      .run()
-
-    const result = getSevenDaySales(client.db)
-    expect(result[0].totalCents).toBe(2500)
-  })
-
-  it('excludes a sale from 7 days ago (one day outside the window)', () => {
-    const sevenDaysAgo = new Date()
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-    client.db
-      .insert(sales)
-      .values({ id: 'seven-days-ago-sale', totalCents: 9999, status: 'COMPLETED', createdAt: sevenDaysAgo.toISOString() })
-      .run()
-
-    const result = getSevenDaySales(client.db)
-    expect(result.reduce((sum, day) => sum + day.totalCents, 0)).toBe(0)
-  })
-})

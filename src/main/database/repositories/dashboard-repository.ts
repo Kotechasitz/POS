@@ -1,25 +1,61 @@
-import { and, asc, desc, eq, gte, inArray, lt, lte, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm'
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import { products, sales, saleItems } from '../schema'
-import type { DashboardSummary, TopProduct, DailySales } from '../../../shared/dashboard'
+import type {
+  DashboardPeriod,
+  DashboardStats,
+  PeriodStats,
+  ChartBucket,
+  PaymentMethodBreakdown,
+  TopProduct
+} from '../../../shared/dashboard'
 import type { ProductRecord } from '../../../shared/product'
+import type { PaymentMethod } from '../../../shared/sale'
 import { Money } from '../../../shared/money'
 
-// Computed with the local (OS) timezone deliberately — see the plan's
-// Global Constraints: created_at is stored as UTC, but "today" must mean
-// the shop's local calendar day, not a UTC day.
+// Computed with the local (OS) timezone deliberately — created_at is stored
+// as UTC, but every period boundary below must mean the shop's local
+// calendar day, not a UTC day.
 function startOfDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate())
 }
 
-export function getDashboardSummary(
-  db: BetterSQLite3Database,
-  referenceDate: Date = new Date()
-): DashboardSummary {
-  const start = startOfDay(referenceDate)
-  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1)
+function addDays(date: Date, days: number): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days)
+}
 
-  const todaysSales = db
+interface PeriodWindow {
+  currentStart: Date
+  currentEnd: Date
+  previousStart: Date
+  previousEnd: Date
+}
+
+function getPeriodWindow(period: DashboardPeriod, referenceDate: Date): PeriodWindow {
+  const todayStart = startOfDay(referenceDate)
+
+  if (period === 'today') {
+    return {
+      currentStart: todayStart,
+      currentEnd: addDays(todayStart, 1),
+      previousStart: addDays(todayStart, -1),
+      previousEnd: todayStart
+    }
+  }
+
+  // '7days': the 7 local calendar days ending today (inclusive), vs. the 7
+  // immediately before that window.
+  const currentStart = addDays(todayStart, -6)
+  return {
+    currentStart,
+    currentEnd: addDays(todayStart, 1),
+    previousStart: addDays(currentStart, -7),
+    previousEnd: currentStart
+  }
+}
+
+function getPeriodStats(db: BetterSQLite3Database, start: Date, end: Date): PeriodStats {
+  const windowSales = db
     .select()
     .from(sales)
     .where(
@@ -31,22 +67,99 @@ export function getDashboardSummary(
     )
     .all()
 
-  const salesTodayCents = todaysSales
+  const salesCents = windowSales
     .reduce((total, sale) => total.add(Money.fromCents(sale.totalCents)), Money.fromCents(0))
     .cents
 
-  let unitsSoldToday = 0
-  if (todaysSales.length > 0) {
-    const saleIds = todaysSales.map((sale) => sale.id)
+  let unitsSold = 0
+  if (windowSales.length > 0) {
+    const saleIds = windowSales.map((sale) => sale.id)
     const items = db.select().from(saleItems).where(inArray(saleItems.saleId, saleIds)).all()
-    unitsSoldToday = items.reduce((sum, item) => sum + item.quantity, 0)
+    unitsSold = items.reduce((sum, item) => sum + item.quantity, 0)
   }
 
+  const orderCount = windowSales.length
+  const avgOrderValueCents = orderCount > 0 ? Math.round(salesCents / orderCount) : 0
+
+  return { salesCents, orderCount, unitsSold, avgOrderValueCents }
+}
+
+export function getDashboardStats(
+  db: BetterSQLite3Database,
+  period: DashboardPeriod,
+  referenceDate: Date = new Date()
+): DashboardStats {
+  const window = getPeriodWindow(period, referenceDate)
   return {
-    salesTodayCents,
-    orderCountToday: todaysSales.length,
-    unitsSoldToday
+    current: getPeriodStats(db, window.currentStart, window.currentEnd),
+    previous: getPeriodStats(db, window.previousStart, window.previousEnd)
   }
+}
+
+export function getSalesChartData(
+  db: BetterSQLite3Database,
+  period: DashboardPeriod,
+  referenceDate: Date = new Date()
+): ChartBucket[] {
+  if (period === 'today') {
+    const dayStart = startOfDay(referenceDate)
+    const buckets: ChartBucket[] = []
+    for (let hour = 0; hour < 24; hour++) {
+      const start = new Date(dayStart.getFullYear(), dayStart.getMonth(), dayStart.getDate(), hour)
+      const end = new Date(dayStart.getFullYear(), dayStart.getMonth(), dayStart.getDate(), hour + 1)
+      const stats = getPeriodStats(db, start, end)
+      buckets.push({
+        label: start.toLocaleTimeString(undefined, { hour: 'numeric' }),
+        totalCents: stats.salesCents
+      })
+    }
+    return buckets
+  }
+
+  // '7days'
+  const buckets: ChartBucket[] = []
+  for (let daysAgo = 6; daysAgo >= 0; daysAgo--) {
+    const start = addDays(startOfDay(referenceDate), -daysAgo)
+    const end = addDays(start, 1)
+    const stats = getPeriodStats(db, start, end)
+    buckets.push({
+      label: start.toLocaleDateString(undefined, { weekday: 'short' }),
+      totalCents: stats.salesCents
+    })
+  }
+  return buckets
+}
+
+export function getPaymentMethodBreakdown(
+  db: BetterSQLite3Database,
+  period: DashboardPeriod,
+  referenceDate: Date = new Date()
+): PaymentMethodBreakdown[] {
+  const window = getPeriodWindow(period, referenceDate)
+
+  const rows = db
+    .select({
+      paymentMethod: sales.paymentMethod,
+      totalCents: sql<number>`SUM(${sales.totalCents})`,
+      count: sql<number>`COUNT(*)`
+    })
+    .from(sales)
+    .where(
+      and(
+        eq(sales.status, 'COMPLETED'),
+        gte(sales.createdAt, window.currentStart.toISOString()),
+        lt(sales.createdAt, window.currentEnd.toISOString())
+      )
+    )
+    .groupBy(sales.paymentMethod)
+    .orderBy(desc(sql`SUM(${sales.totalCents})`))
+    .all()
+
+  return rows.map((row) => ({
+    paymentMethod: row.paymentMethod as PaymentMethod,
+    totalCents: row.totalCents,
+    count: row.count
+  }))
 }
 
 export function getLowStockProducts(
@@ -56,7 +169,7 @@ export function getLowStockProducts(
   return db
     .select()
     .from(products)
-    .where(and(eq(products.isActive, true), lte(products.stock, threshold)))
+    .where(and(eq(products.isActive, true), sql`${products.stock} <= ${threshold}`))
     .orderBy(asc(products.stock))
     .all() as ProductRecord[]
 }
@@ -77,45 +190,4 @@ export function getTopProducts(db: BetterSQLite3Database, limit: number = 5): To
     .orderBy(desc(sql`SUM(${saleItems.quantity})`))
     .limit(limit)
     .all()
-}
-
-function formatDateOnly(date: Date): string {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-export function getSevenDaySales(
-  db: BetterSQLite3Database,
-  referenceDate: Date = new Date()
-): DailySales[] {
-  const results: DailySales[] = []
-
-  for (let daysAgo = 6; daysAgo >= 0; daysAgo--) {
-    const day = new Date(referenceDate)
-    day.setDate(day.getDate() - daysAgo)
-    const start = startOfDay(day)
-    const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1)
-
-    const daysSales = db
-      .select()
-      .from(sales)
-      .where(
-        and(
-          eq(sales.status, 'COMPLETED'),
-          gte(sales.createdAt, start.toISOString()),
-          lt(sales.createdAt, end.toISOString())
-        )
-      )
-      .all()
-
-    const totalCents = daysSales
-      .reduce((total, sale) => total.add(Money.fromCents(sale.totalCents)), Money.fromCents(0))
-      .cents
-
-    results.push({ date: formatDateOnly(start), totalCents })
-  }
-
-  return results
 }
