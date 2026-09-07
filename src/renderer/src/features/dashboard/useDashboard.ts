@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type {
   DashboardPeriod,
   DashboardStats,
@@ -32,6 +32,11 @@ export interface UseDashboardResult {
   // pair.
   staticLoading: boolean
   staticError: string | null
+  // The static effect ([] deps) only ever runs once on mount, so a failure
+  // has no automatic retry — reloadStatic() lets a consumer offer a Retry
+  // button that re-fetches topProducts/lowStock on demand, matching the
+  // reload()-callback convention used by useProducts/useSalesHistory.
+  reloadStatic: () => Promise<void>
   periodLoading: boolean
   periodError: string | null
 }
@@ -49,8 +54,31 @@ export function useDashboard(): UseDashboardResult {
   const [staticError, setStaticError] = useState<string | null>(null)
   const [periodError, setPeriodError] = useState<string | null>(null)
 
+  // Exposed so a consumer can offer a Retry button — the static effect
+  // below only ever runs once on mount ([] deps), so without this a
+  // one-off failure would leave staticError set for the rest of the
+  // session with no way to recover.
+  const reloadStatic = useCallback(async (): Promise<void> => {
+    setStaticLoading(true)
+    try {
+      const [topProductsResult, lowStockResult] = await Promise.all([
+        window.api.dashboard.topProducts(),
+        window.api.dashboard.lowStock()
+      ])
+      setTopProducts(topProductsResult)
+      setLowStockProducts(lowStockResult)
+      setStaticError(null)
+    } catch (err) {
+      setStaticError(toUserMessage(err))
+    } finally {
+      setStaticLoading(false)
+    }
+  }, [])
+
   // Top products and low stock are period-independent (unchanged from
-  // Phase 5) — loaded once, not re-fetched when `period` changes.
+  // Phase 5) — loaded once, not re-fetched when `period` changes (a
+  // consumer-triggered retry via reloadStatic() above is the only other
+  // way this data ever reloads).
   useEffect(() => {
     let ignore = false
 
@@ -138,6 +166,7 @@ export function useDashboard(): UseDashboardResult {
     lowStockProducts,
     staticLoading,
     staticError,
+    reloadStatic,
     periodLoading,
     periodError
   }

@@ -71,6 +71,29 @@ function LoadingRow({ label }: { label: string }): React.JSX.Element {
   )
 }
 
+interface StaticErrorNoticeProps {
+  message: string
+  onRetry: () => void
+}
+
+// The static effect (Top Products/Low Stock) only ever runs once on mount
+// — unlike the period effect, nothing else naturally re-triggers it — so
+// its error needs an explicit way to recover. Only ever rendered while
+// staticLoading is false (see the two call sites below), so there's no
+// separate "retrying" state to show here — once Retry is clicked,
+// staticLoading flips true and this notice is replaced by the LoadingRow
+// branch until the retry settles.
+function StaticErrorNotice({ message, onRetry }: StaticErrorNoticeProps): React.JSX.Element {
+  return (
+    <div className="alert alert-danger alert-inline alert-with-action" role="alert">
+      <span>{message}</span>
+      <button type="button" className="btn btn-secondary" onClick={onRetry}>
+        Retry
+      </button>
+    </div>
+  )
+}
+
 function DashboardPage(): React.JSX.Element {
   const {
     period,
@@ -83,6 +106,7 @@ function DashboardPage(): React.JSX.Element {
     lowStockProducts,
     staticLoading,
     staticError,
+    reloadStatic,
     periodLoading,
     periodError
   } = useDashboard()
@@ -139,9 +163,7 @@ function DashboardPage(): React.JSX.Element {
           ) : periodContentReady ? (
             <BarChart
               data={chartData}
-              ariaLabel={
-                period === 'today' ? 'Sales by hour, today' : 'Sales for the last 7 days'
-              }
+              ariaLabel={period === 'today' ? 'Sales by hour, today' : 'Sales for the last 7 days'}
             />
           ) : (
             periodError && (
@@ -172,9 +194,7 @@ function DashboardPage(): React.JSX.Element {
           {staticLoading ? (
             <LoadingRow label="Loading…" />
           ) : staticError ? (
-            <p role="alert" className="alert alert-danger alert-inline">
-              {staticError}
-            </p>
+            <StaticErrorNotice message={staticError} onRetry={reloadStatic} />
           ) : topProducts.length === 0 ? (
             <p className="empty-hint">No sales yet</p>
           ) : (
@@ -199,9 +219,7 @@ function DashboardPage(): React.JSX.Element {
           {staticLoading ? (
             <LoadingRow label="Loading…" />
           ) : staticError ? (
-            <p role="alert" className="alert alert-danger alert-inline">
-              {staticError}
-            </p>
+            <StaticErrorNotice message={staticError} onRetry={reloadStatic} />
           ) : lowStockProducts.length === 0 ? (
             <p className="empty-hint">Nothing low on stock</p>
           ) : (

@@ -191,7 +191,7 @@ describe('DashboardPage', () => {
     )
   })
 
-  it('shows an error in place of the stats/chart/donut region — never the stale prior period\'s numbers — when a period switch fails, while Top Products/Low Stock stay untouched', async () => {
+  it("shows an error in place of the stats/chart/donut region — never the stale prior period's numbers — when a period switch fails, while Top Products/Low Stock stay untouched", async () => {
     render(<DashboardPage />)
     await waitFor(() => expect(screen.getByText('Total Sales')).toBeInTheDocument())
     expect(screen.getByText('฿40.00')).toBeInTheDocument() // today's total, for later comparison
@@ -235,6 +235,25 @@ describe('DashboardPage', () => {
       .getAllByRole('alert')
       .find((el) => el.textContent?.includes('static broke'))
     expect(staticAlert).toBeTruthy()
+  })
+
+  it('clicking Retry on a static-effect error re-fetches Top Products/Low Stock and, on success, replaces the error with the real data', async () => {
+    ;(window.api.dashboard.topProducts as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error("Error invoking remote method 'dashboard:topProducts': static broke")
+    )
+    render(<DashboardPage />)
+
+    await waitFor(() => expect(screen.getAllByText(/static broke/).length).toBeGreaterThan(0))
+    expect(screen.queryByText('1. Coke')).not.toBeInTheDocument()
+
+    const retryButtons = screen.getAllByRole('button', { name: 'Retry' })
+    expect(retryButtons).toHaveLength(2) // Top Products panel + Low Stock panel
+    await userEvent.click(retryButtons[0])
+
+    await waitFor(() => expect(screen.getByText('1. Coke')).toBeInTheDocument())
+    expect(screen.queryAllByText(/static broke/)).toHaveLength(0)
+    expect(screen.getByText('Water')).toBeInTheDocument()
+    expect(window.api.dashboard.topProducts).toHaveBeenCalledTimes(2)
   })
 
   it('renders the payment method donut chart', async () => {

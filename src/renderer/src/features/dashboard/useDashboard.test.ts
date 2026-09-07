@@ -47,12 +47,16 @@ describe('useDashboard', () => {
       products: { list: vi.fn(), create: vi.fn(), update: vi.fn(), getByBarcode: vi.fn() },
       sales: { complete: vi.fn() },
       dashboard: {
-        stats: vi.fn().mockImplementation((period: string) =>
-          Promise.resolve(period === 'today' ? todayStats : sevenDayStats)
-        ),
-        chartData: vi.fn().mockImplementation((period: string) =>
-          Promise.resolve(period === 'today' ? hourlyChart : sevenDayChart)
-        ),
+        stats: vi
+          .fn()
+          .mockImplementation((period: string) =>
+            Promise.resolve(period === 'today' ? todayStats : sevenDayStats)
+          ),
+        chartData: vi
+          .fn()
+          .mockImplementation((period: string) =>
+            Promise.resolve(period === 'today' ? hourlyChart : sevenDayChart)
+          ),
         paymentBreakdown: vi.fn().mockResolvedValue(paymentBreakdown),
         topProducts: vi.fn().mockResolvedValue(topProducts),
         lowStock: vi.fn().mockResolvedValue(lowStock)
@@ -82,14 +86,12 @@ describe('useDashboard', () => {
     expect(window.api.dashboard.stats).toHaveBeenCalledWith('today', expect.any(String))
     expect(window.api.dashboard.chartData).toHaveBeenCalledWith('today', expect.any(String))
     expect(window.api.dashboard.paymentBreakdown).toHaveBeenCalledWith('today', expect.any(String))
-    const [statsPeriodArg, statsDateArg] = (
-      window.api.dashboard.stats as ReturnType<typeof vi.fn>
-    ).mock.calls[0]
+    const [statsPeriodArg, statsDateArg] = (window.api.dashboard.stats as ReturnType<typeof vi.fn>)
+      .mock.calls[0]
     const [, chartDateArg] = (window.api.dashboard.chartData as ReturnType<typeof vi.fn>).mock
       .calls[0]
-    const [, breakdownDateArg] = (
-      window.api.dashboard.paymentBreakdown as ReturnType<typeof vi.fn>
-    ).mock.calls[0]
+    const [, breakdownDateArg] = (window.api.dashboard.paymentBreakdown as ReturnType<typeof vi.fn>)
+      .mock.calls[0]
     expect(statsPeriodArg).toBe('today')
     expect(chartDateArg).toBe(statsDateArg)
     expect(breakdownDateArg).toBe(statsDateArg)
@@ -175,6 +177,52 @@ describe('useDashboard', () => {
     expect(result.current.period).toBe('7days')
     expect(result.current.statsPeriod).toBe('today')
     expect(result.current.stats).toEqual(todayStats)
+  })
+
+  it('reloadStatic() re-fetches topProducts/lowStock and clears a prior staticError on success', async () => {
+    ;(window.api.dashboard.topProducts as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error("Error invoking remote method 'dashboard:topProducts': Static source broke")
+    )
+    const { result } = renderHook(() => useDashboard())
+
+    await waitFor(() => expect(result.current.staticError).toBe('Static source broke'))
+    expect(result.current.topProducts).toEqual([])
+
+    await act(async () => {
+      await result.current.reloadStatic()
+    })
+
+    expect(result.current.staticError).toBeNull()
+    expect(result.current.topProducts).toEqual(topProducts)
+    expect(result.current.lowStockProducts).toEqual(lowStock)
+    // The one-off rejection only fires once (mockRejectedValueOnce) — the
+    // retry's second call succeeds against the default mock.
+    expect(window.api.dashboard.topProducts).toHaveBeenCalledTimes(2)
+  })
+
+  it('reloadStatic() sets staticLoading true for the duration of the retry', async () => {
+    const { result } = renderHook(() => useDashboard())
+    await waitFor(() => expect(result.current.staticLoading).toBe(false))
+
+    let resolveTopProducts!: (value: TopProduct[]) => void
+    ;(window.api.dashboard.topProducts as ReturnType<typeof vi.fn>).mockImplementation(
+      () =>
+        new Promise<TopProduct[]>((resolve) => {
+          resolveTopProducts = resolve
+        })
+    )
+
+    let retryPromise!: Promise<void>
+    act(() => {
+      retryPromise = result.current.reloadStatic()
+    })
+    expect(result.current.staticLoading).toBe(true)
+
+    await act(async () => {
+      resolveTopProducts(topProducts)
+      await retryPromise
+    })
+    expect(result.current.staticLoading).toBe(false)
   })
 
   it('keeps staticLoading true until the slower static effect also finishes, independently of periodLoading', async () => {

@@ -346,6 +346,13 @@
   margin: var(--space-4);
 }
 
+.alert-with-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
 /* ---- Modal (product add/edit form) ---- */
 
 .modal-backdrop {
