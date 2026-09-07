@@ -39,12 +39,18 @@ const api = {
     ): Promise<SaleRecord> => ipcRenderer.invoke('sales:complete', items, paymentMethod, discountCents)
   },
   dashboard: {
-    stats: (period: DashboardPeriod): Promise<DashboardStats> =>
-      ipcRenderer.invoke('dashboard:stats', period),
-    chartData: (period: DashboardPeriod): Promise<ChartBucket[]> =>
-      ipcRenderer.invoke('dashboard:chartData', period),
-    paymentBreakdown: (period: DashboardPeriod): Promise<PaymentMethodBreakdown[]> =>
-      ipcRenderer.invoke('dashboard:paymentBreakdown', period),
+    // `referenceDateIso` lets a caller pin all three period-scoped calls to
+    // the SAME instant (see useDashboard.ts), so they can't disagree about
+    // "now" if the calls happen to straddle local midnight.
+    stats: (period: DashboardPeriod, referenceDateIso?: string): Promise<DashboardStats> =>
+      ipcRenderer.invoke('dashboard:stats', period, referenceDateIso),
+    chartData: (period: DashboardPeriod, referenceDateIso?: string): Promise<ChartBucket[]> =>
+      ipcRenderer.invoke('dashboard:chartData', period, referenceDateIso),
+    paymentBreakdown: (
+      period: DashboardPeriod,
+      referenceDateIso?: string
+    ): Promise<PaymentMethodBreakdown[]> =>
+      ipcRenderer.invoke('dashboard:paymentBreakdown', period, referenceDateIso),
     topProducts: (limit?: number): Promise<TopProduct[]> =>
       ipcRenderer.invoke('dashboard:topProducts', limit),
     lowStock: (threshold?: number): Promise<ProductRecord[]> =>

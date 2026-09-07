@@ -127,7 +127,7 @@ describe('DashboardPage', () => {
     expect(within(salesCard).getByText('+13% vs previous period')).toBeInTheDocument()
   })
 
-  it('shows the full-page spinner only on the very first load, before any data has ever arrived', async () => {
+  it('renders the header and period control immediately, even before the very first load resolves', async () => {
     let resolveStats!: (value: DashboardStats) => void
     ;(window.api.dashboard.stats as ReturnType<typeof vi.fn>).mockImplementation(
       () =>
@@ -138,19 +138,25 @@ describe('DashboardPage', () => {
 
     render(<DashboardPage />)
 
-    expect(screen.getByText('Loading dashboard…')).toBeInTheDocument()
-    expect(screen.queryByLabelText('Period')).not.toBeInTheDocument()
+    // No full-page gate at all: the header/select render on the very first
+    // paint, with only the stat-card/chart/donut region showing a loading
+    // state while the first fetch is in flight.
+    expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Period')).toBeInTheDocument()
+    expect(screen.getAllByText(/Loading/).length).toBeGreaterThan(0)
+    expect(screen.queryByText('Total Sales')).not.toBeInTheDocument()
 
     await act(async () => {
       resolveStats(todayStats)
     })
 
-    await waitFor(() => expect(screen.getByLabelText('Period')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Total Sales')).toBeInTheDocument())
   })
 
-  it('keeps the header and period select mounted while a period switch is still reloading', async () => {
+  it('keeps the header, period select, Top Products, and Low Stock untouched while a period switch reloads the stats/chart/donut', async () => {
     render(<DashboardPage />)
     await waitFor(() => expect(screen.getByText('Total Sales')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('1. Coke')).toBeInTheDocument())
 
     let resolveStats!: (value: DashboardStats) => void
     ;(window.api.dashboard.stats as ReturnType<typeof vi.fn>).mockImplementation(
@@ -163,10 +169,18 @@ describe('DashboardPage', () => {
     await userEvent.selectOptions(screen.getByLabelText('Period'), '7days')
 
     // The period effect's promise is still pending here — the select the
-    // user just used must not have been unmounted out from under them.
+    // user just used must not have been unmounted out from under them,
+    // and the period-INDEPENDENT panels (Top Products/Low Stock) must
+    // still show their data, not a spinner, since nothing about them
+    // actually needs to reload on a period switch.
     expect(screen.getByLabelText('Period')).toBeInTheDocument()
     expect(screen.getByLabelText('Period')).toHaveValue('7days')
-    expect(screen.getByText('Loading dashboard…')).toBeInTheDocument()
+    expect(screen.getByText('1. Coke')).toBeInTheDocument()
+    expect(screen.getByText('Water')).toBeInTheDocument()
+    // Top products/low stock were fetched exactly once — not re-fetched by
+    // the period switch.
+    expect(window.api.dashboard.topProducts).toHaveBeenCalledTimes(1)
+    expect(window.api.dashboard.lowStock).toHaveBeenCalledTimes(1)
 
     await act(async () => {
       resolveStats(sevenDayStats)
@@ -175,6 +189,52 @@ describe('DashboardPage', () => {
     await waitFor(() =>
       expect(screen.getByRole('heading', { name: 'Last 7 Days' })).toBeInTheDocument()
     )
+  })
+
+  it('shows an error in place of the stats/chart/donut region — never the stale prior period\'s numbers — when a period switch fails, while Top Products/Low Stock stay untouched', async () => {
+    render(<DashboardPage />)
+    await waitFor(() => expect(screen.getByText('Total Sales')).toBeInTheDocument())
+    expect(screen.getByText('฿40.00')).toBeInTheDocument() // today's total, for later comparison
+
+    ;(window.api.dashboard.stats as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error("Error invoking remote method 'dashboard:stats': switch failed")
+    )
+
+    await userEvent.selectOptions(screen.getByLabelText('Period'), '7days')
+
+    // Every period-gated region (stat cards, chart, donut) independently
+    // shows the error rather than any of them silently falling back to
+    // stale numbers.
+    await waitFor(() => expect(screen.getAllByRole('alert').length).toBeGreaterThan(0))
+    expect(screen.getAllByRole('alert')[0]).toHaveTextContent('switch failed')
+    // The old "Today" numbers must NOT still be on screen under the new
+    // "Last 7 Days" heading/select value — this is the core bug: stale
+    // data rendered as if it were the newly-selected period's data.
+    expect(screen.queryByText('฿40.00')).not.toBeInTheDocument()
+    expect(screen.queryByText('Total Sales')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Period')).toHaveValue('7days')
+    // Top Products/Low Stock are unrelated to the failed period fetch and
+    // must still be showing their data.
+    expect(screen.getByText('1. Coke')).toBeInTheDocument()
+    expect(screen.getByText('Water')).toBeInTheDocument()
+  })
+
+  it('a static-effect failure on first load does not hide already-loaded period stats, and vice versa', async () => {
+    ;(window.api.dashboard.topProducts as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error("Error invoking remote method 'dashboard:topProducts': static broke")
+    )
+    render(<DashboardPage />)
+
+    // The period-scoped stats load fine and must be visible even though
+    // the static (topProducts/lowStock) source failed.
+    await waitFor(() => expect(screen.getByText('Total Sales')).toBeInTheDocument())
+    expect(screen.getByText('฿40.00')).toBeInTheDocument()
+    // The static failure surfaces in its own region, not swallowed.
+    await waitFor(() => expect(screen.getAllByRole('alert').length).toBeGreaterThan(0))
+    const staticAlert = screen
+      .getAllByRole('alert')
+      .find((el) => el.textContent?.includes('static broke'))
+    expect(staticAlert).toBeTruthy()
   })
 
   it('renders the payment method donut chart', async () => {
@@ -201,9 +261,9 @@ describe('DashboardPage', () => {
     await waitFor(() => expect(screen.getAllByText('No sales yet').length).toBeGreaterThan(0))
   })
 
-  it('shows an error message when loading fails', async () => {
+  it('shows an error message in the stats region when the period-scoped load fails', async () => {
     ;(window.api.dashboard.stats as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('boom'))
     render(<DashboardPage />)
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('boom'))
+    await waitFor(() => expect(screen.getAllByRole('alert')[0]).toHaveTextContent('boom'))
   })
 })

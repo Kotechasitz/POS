@@ -1,6 +1,7 @@
 import { Money } from '../../../../shared/money'
 import type { PaymentMethodBreakdown } from '../../../../shared/dashboard'
 import type { PaymentMethod } from '../../../../shared/sale'
+import { PAYMENT_METHOD_LABELS } from '../../../../shared/sale'
 
 export interface DonutChartProps {
   data: PaymentMethodBreakdown[]
@@ -61,7 +62,7 @@ function DonutChart({ data }: DonutChartProps): React.JSX.Element {
             strokeDashoffset={-segment.offset}
             transform={`rotate(-90 ${SIZE / 2} ${SIZE / 2})`}
           >
-            <title>{`${segment.paymentMethod}: ${Money.fromCents(segment.totalCents).format()}`}</title>
+            <title>{`${PAYMENT_METHOD_LABELS[segment.paymentMethod]}: ${Money.fromCents(segment.totalCents).format()}`}</title>
           </circle>
         ))}
       </svg>
@@ -72,7 +73,7 @@ function DonutChart({ data }: DonutChartProps): React.JSX.Element {
               className={`donut-legend-swatch ${SEGMENT_CLASS[segment.paymentMethod]}`}
               aria-hidden="true"
             />
-            <span>{segment.paymentMethod}</span>
+            <span>{PAYMENT_METHOD_LABELS[segment.paymentMethod]}</span>
             <span>
               {Money.fromCents(segment.totalCents).format()} ({segment.percent}%)
             </span>

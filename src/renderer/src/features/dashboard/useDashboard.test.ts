@@ -63,24 +63,41 @@ describe('useDashboard', () => {
 
   it("defaults to period 'today' and loads all five data sources", async () => {
     const { result } = renderHook(() => useDashboard())
-    expect(result.current.loading).toBe(true)
+    expect(result.current.periodLoading).toBe(true)
+    expect(result.current.staticLoading).toBe(true)
     expect(result.current.period).toBe('today')
 
-    await waitFor(() => expect(result.current.loading).toBe(false))
+    await waitFor(() => expect(result.current.periodLoading).toBe(false))
+    await waitFor(() => expect(result.current.staticLoading).toBe(false))
     expect(result.current.stats).toEqual(todayStats)
+    expect(result.current.statsPeriod).toBe('today')
     expect(result.current.chartData).toEqual(hourlyChart)
     expect(result.current.paymentBreakdown).toEqual(paymentBreakdown)
     expect(result.current.topProducts).toEqual(topProducts)
     expect(result.current.lowStockProducts).toEqual(lowStock)
-    expect(result.current.error).toBeNull()
-    expect(window.api.dashboard.stats).toHaveBeenCalledWith('today')
-    expect(window.api.dashboard.chartData).toHaveBeenCalledWith('today')
-    expect(window.api.dashboard.paymentBreakdown).toHaveBeenCalledWith('today')
+    expect(result.current.periodError).toBeNull()
+    expect(result.current.staticError).toBeNull()
+    // Called with the period AND a shared referenceDateIso string, so all
+    // three period-scoped calls agree on "now".
+    expect(window.api.dashboard.stats).toHaveBeenCalledWith('today', expect.any(String))
+    expect(window.api.dashboard.chartData).toHaveBeenCalledWith('today', expect.any(String))
+    expect(window.api.dashboard.paymentBreakdown).toHaveBeenCalledWith('today', expect.any(String))
+    const [statsPeriodArg, statsDateArg] = (
+      window.api.dashboard.stats as ReturnType<typeof vi.fn>
+    ).mock.calls[0]
+    const [, chartDateArg] = (window.api.dashboard.chartData as ReturnType<typeof vi.fn>).mock
+      .calls[0]
+    const [, breakdownDateArg] = (
+      window.api.dashboard.paymentBreakdown as ReturnType<typeof vi.fn>
+    ).mock.calls[0]
+    expect(statsPeriodArg).toBe('today')
+    expect(chartDateArg).toBe(statsDateArg)
+    expect(breakdownDateArg).toBe(statsDateArg)
   })
 
   it('re-fetches stats, chart data, and payment breakdown when the period changes, without re-fetching top products or low stock', async () => {
     const { result } = renderHook(() => useDashboard())
-    await waitFor(() => expect(result.current.loading).toBe(false))
+    await waitFor(() => expect(result.current.periodLoading).toBe(false))
 
     act(() => {
       result.current.setPeriod('7days')
@@ -88,20 +105,21 @@ describe('useDashboard', () => {
     await waitFor(() => expect(result.current.stats).toEqual(sevenDayStats))
 
     expect(result.current.period).toBe('7days')
+    expect(result.current.statsPeriod).toBe('7days')
     expect(result.current.chartData).toEqual(sevenDayChart)
-    expect(window.api.dashboard.stats).toHaveBeenCalledWith('7days')
+    expect(window.api.dashboard.stats).toHaveBeenCalledWith('7days', expect.any(String))
     expect(window.api.dashboard.topProducts).toHaveBeenCalledTimes(1)
     expect(window.api.dashboard.lowStock).toHaveBeenCalledTimes(1)
   })
 
-  it('surfaces a clean error message when a data source fails', async () => {
+  it('surfaces a clean period-error message when a period-scoped source fails', async () => {
     ;(window.api.dashboard.stats as ReturnType<typeof vi.fn>).mockRejectedValue(
       new Error("Error invoking remote method 'dashboard:stats': Something broke")
     )
     const { result } = renderHook(() => useDashboard())
 
-    await waitFor(() => expect(result.current.loading).toBe(false))
-    expect(result.current.error).toBe('Something broke')
+    await waitFor(() => expect(result.current.periodLoading).toBe(false))
+    expect(result.current.periodError).toBe('Something broke')
   })
 
   it('does not let a successful period fetch clobber a static-effect error', async () => {
@@ -110,16 +128,56 @@ describe('useDashboard', () => {
     )
     const { result } = renderHook(() => useDashboard())
 
-    await waitFor(() => expect(result.current.loading).toBe(false))
+    await waitFor(() => expect(result.current.periodLoading).toBe(false))
+    await waitFor(() => expect(result.current.staticLoading).toBe(false))
     // The period effect (stats/chartData/paymentBreakdown) resolved successfully,
     // but the static effect's failure must still be reflected, not silently
-    // cleared by the period effect's `setError(null)`.
-    expect(result.current.error).not.toBeNull()
-    expect(result.current.error).toBe('Static source broke')
+    // cleared or masked by the period effect's own success.
+    expect(result.current.staticError).toBe('Static source broke')
+    expect(result.current.periodError).toBeNull()
     expect(result.current.topProducts).toEqual([])
+    // The period side's success is untouched by the static side's failure.
+    expect(result.current.stats).toEqual(todayStats)
   })
 
-  it('keeps loading true until the slower static effect also finishes', async () => {
+  it('does not let a static-effect success clobber a period-effect error, and vice versa (both errors surface independently)', async () => {
+    ;(window.api.dashboard.stats as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error("Error invoking remote method 'dashboard:stats': Period source broke")
+    )
+    ;(window.api.dashboard.topProducts as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error("Error invoking remote method 'dashboard:topProducts': Static source broke")
+    )
+    const { result } = renderHook(() => useDashboard())
+
+    await waitFor(() => expect(result.current.periodLoading).toBe(false))
+    await waitFor(() => expect(result.current.staticLoading).toBe(false))
+    expect(result.current.periodError).toBe('Period source broke')
+    expect(result.current.staticError).toBe('Static source broke')
+  })
+
+  it('does not overwrite stats/chartData/paymentBreakdown/statsPeriod when a period-switch fetch fails, so a consumer can detect the mismatch instead of showing stale data under the new label', async () => {
+    const { result } = renderHook(() => useDashboard())
+    await waitFor(() => expect(result.current.stats).toEqual(todayStats))
+    expect(result.current.statsPeriod).toBe('today')
+
+    ;(window.api.dashboard.stats as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error("Error invoking remote method 'dashboard:stats': switch failed")
+    )
+    act(() => {
+      result.current.setPeriod('7days')
+    })
+
+    await waitFor(() => expect(result.current.periodError).toBe('switch failed'))
+    // `period` has moved on to '7days', but the data/statsPeriod are left
+    // exactly as they were — still 'today' — so a consumer comparing
+    // statsPeriod to period can tell the data is stale rather than render
+    // it under the new "Last 7 Days" heading.
+    expect(result.current.period).toBe('7days')
+    expect(result.current.statsPeriod).toBe('today')
+    expect(result.current.stats).toEqual(todayStats)
+  })
+
+  it('keeps staticLoading true until the slower static effect also finishes, independently of periodLoading', async () => {
     let resolveTopProducts!: (value: TopProduct[]) => void
     ;(window.api.dashboard.topProducts as ReturnType<typeof vi.fn>).mockImplementation(
       () =>
@@ -132,13 +190,14 @@ describe('useDashboard', () => {
 
     // The period effect's data lands, but the static effect is still in flight.
     await waitFor(() => expect(result.current.stats).toEqual(todayStats))
-    expect(result.current.loading).toBe(true)
+    expect(result.current.periodLoading).toBe(false)
+    expect(result.current.staticLoading).toBe(true)
 
     await act(async () => {
       resolveTopProducts(topProducts)
     })
 
-    await waitFor(() => expect(result.current.loading).toBe(false))
+    await waitFor(() => expect(result.current.staticLoading).toBe(false))
     expect(result.current.topProducts).toEqual(topProducts)
   })
 })

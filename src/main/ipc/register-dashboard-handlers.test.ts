@@ -18,6 +18,7 @@ vi.mock('electron', () => ({
 
 import { registerDashboardHandlers } from './register-dashboard-handlers'
 import { createDbClient, type DbClient } from '../database/client'
+import { sales } from '../database/schema'
 import { createProduct } from '../database/repositories/product-repository'
 import { completeSale } from '../database/repositories/sale-repository'
 import type { DashboardStats, ChartBucket, PaymentMethodBreakdown } from '../../shared/dashboard'
@@ -77,6 +78,38 @@ describe('registerDashboardHandlers', () => {
     const breakdownHandler = handlers.get('dashboard:paymentBreakdown')!
     const result = breakdownHandler({}, 'today') as PaymentMethodBreakdown[]
     expect(result).toEqual([{ paymentMethod: 'QR', totalCents: 2000, count: 1 }])
+  })
+
+  it('dashboard:stats and dashboard:chartData both honor an explicit referenceDateIso, so a caller can pin every period-scoped call to the same instant', () => {
+    // A sale placed on a fixed, arbitrary past date — only visible to a
+    // handler call that actually used that date as "today", not the real
+    // current date.
+    const pinnedDate = new Date(2020, 0, 15, 10, 0, 0)
+    client.db
+      .insert(sales)
+      .values({
+        id: 'pinned-sale',
+        totalCents: 4000,
+        status: 'COMPLETED',
+        paymentMethod: 'CASH',
+        createdAt: pinnedDate.toISOString()
+      })
+      .run()
+
+    const referenceDateIso = pinnedDate.toISOString()
+    const statsHandler = handlers.get('dashboard:stats')!
+    const chartDataHandler = handlers.get('dashboard:chartData')!
+
+    const statsForPinnedDate = statsHandler({}, 'today', referenceDateIso) as DashboardStats
+    expect(statsForPinnedDate.current.salesCents).toBe(4000)
+
+    const chartForPinnedDate = chartDataHandler({}, 'today', referenceDateIso) as ChartBucket[]
+    expect(chartForPinnedDate.reduce((sum, bucket) => sum + bucket.totalCents, 0)).toBe(4000)
+
+    // Without a referenceDateIso, both fall back to the real "now" and
+    // don't see the pinned-past sale.
+    const statsForNow = statsHandler({}, 'today') as DashboardStats
+    expect(statsForNow.current.salesCents).toBe(0)
   })
 
   it('dashboard:topProducts passes a given limit through', () => {

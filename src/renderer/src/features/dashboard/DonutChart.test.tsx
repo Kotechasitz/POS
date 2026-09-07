@@ -15,14 +15,18 @@ describe('DonutChart', () => {
     expect(container.querySelectorAll('.donut-chart-segment')).toHaveLength(3)
   })
 
-  it('renders a legend row per payment method, with its amount and percentage of the total', () => {
+  it('renders a legend row per payment method, using the shared display label (not the raw enum value), with its amount and percentage of the total', () => {
     render(<DonutChart data={breakdown} />)
-    // Total is 10000 -> CASH is 60%, QR is 30%, CARD is 10%
-    expect(screen.getByText('CASH')).toBeInTheDocument()
+    // Total is 10000 -> CASH is 60%, QR is 30%, CARD is 10%. Labels come
+    // from the same PAYMENT_METHOD_LABELS map the checkout modal uses
+    // ('Cash'/'QR'/'Card'), not the raw 'CASH'/'QR'/'CARD' enum values.
+    expect(screen.getByText('Cash')).toBeInTheDocument()
+    expect(screen.queryByText('CASH')).not.toBeInTheDocument()
     expect(screen.getByText('฿60.00 (60%)')).toBeInTheDocument()
     expect(screen.getByText('QR')).toBeInTheDocument()
     expect(screen.getByText('฿30.00 (30%)')).toBeInTheDocument()
-    expect(screen.getByText('CARD')).toBeInTheDocument()
+    expect(screen.getByText('Card')).toBeInTheDocument()
+    expect(screen.queryByText('CARD')).not.toBeInTheDocument()
     expect(screen.getByText('฿10.00 (10%)')).toBeInTheDocument()
   })
 

@@ -1,17 +1,11 @@
 import { useEffect } from 'react'
 import type { PaymentMethod } from '../../../../shared/sale'
-import { PAYMENT_METHODS } from '../../../../shared/sale'
+import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '../../../../shared/sale'
 
 export interface PaymentMethodModalProps {
   submitting: boolean
   onSelect: (method: PaymentMethod) => void
   onCancel: () => void
-}
-
-const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
-  CASH: 'Cash',
-  QR: 'QR',
-  CARD: 'Card'
 }
 
 function PaymentMethodModal({

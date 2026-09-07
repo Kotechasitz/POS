@@ -36,9 +36,12 @@ declare global {
         ) => Promise<SaleRecord>
       }
       dashboard: {
-        stats: (period: DashboardPeriod) => Promise<DashboardStats>
-        chartData: (period: DashboardPeriod) => Promise<ChartBucket[]>
-        paymentBreakdown: (period: DashboardPeriod) => Promise<PaymentMethodBreakdown[]>
+        stats: (period: DashboardPeriod, referenceDateIso?: string) => Promise<DashboardStats>
+        chartData: (period: DashboardPeriod, referenceDateIso?: string) => Promise<ChartBucket[]>
+        paymentBreakdown: (
+          period: DashboardPeriod,
+          referenceDateIso?: string
+        ) => Promise<PaymentMethodBreakdown[]>
         topProducts: (limit?: number) => Promise<TopProduct[]>
         lowStock: (threshold?: number) => Promise<ProductRecord[]>
       }

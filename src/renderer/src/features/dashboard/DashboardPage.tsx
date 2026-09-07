@@ -2,7 +2,7 @@ import { useDashboard } from './useDashboard'
 import BarChart from './BarChart'
 import DonutChart from './DonutChart'
 import { Money } from '../../../../shared/money'
-import type { DashboardPeriod } from '../../../../shared/dashboard'
+import type { DashboardPeriod, PeriodStats } from '../../../../shared/dashboard'
 
 interface StatCardProps {
   label: string
@@ -36,58 +36,61 @@ function StatCard({ label, value, current, previous }: StatCardProps): React.JSX
   )
 }
 
+// One definition of the four cards, mapped over rather than hand-copied —
+// adding a fifth stat means adding one entry here, not a fifth JSX block
+// that could drift from the others (e.g. a pasted card left pointing at
+// the wrong PeriodStats field).
+const STAT_CARD_CONFIG: {
+  key: string
+  label: string
+  field: keyof PeriodStats
+  format: (value: number) => string
+}[] = [
+  {
+    key: 'sales',
+    label: 'Total Sales',
+    field: 'salesCents',
+    format: (value) => Money.fromCents(value).format()
+  },
+  { key: 'orders', label: 'Total Orders', field: 'orderCount', format: (value) => String(value) },
+  {
+    key: 'avgOrder',
+    label: 'Avg Order Value',
+    field: 'avgOrderValueCents',
+    format: (value) => Money.fromCents(value).format()
+  },
+  { key: 'units', label: 'Units Sold', field: 'unitsSold', format: (value) => String(value) }
+]
+
+function LoadingRow({ label }: { label: string }): React.JSX.Element {
+  return (
+    <div className="loading-row">
+      <span className="spinner" aria-hidden="true" />
+      {label}
+    </div>
+  )
+}
+
 function DashboardPage(): React.JSX.Element {
   const {
     period,
     setPeriod,
     stats,
+    statsPeriod,
     chartData,
     paymentBreakdown,
     topProducts,
     lowStockProducts,
-    loading,
-    error
+    staticLoading,
+    staticError,
+    periodLoading,
+    periodError
   } = useDashboard()
 
-  // Only the very first load (nothing has ever arrived yet) replaces the
-  // whole page — once we have data, a period switch keeps the header and
-  // period control mounted and only reloads the content below them.
-  if (loading && stats === null) {
-    return (
-      <div className="products-page">
-        <div className="loading-row">
-          <span className="spinner" aria-hidden="true" />
-          Loading dashboard…
-        </div>
-      </div>
-    )
-  }
-
-  if (error && stats === null) {
-    return (
-      <div className="products-page">
-        <div className="products-header">
-          <h1>Dashboard</h1>
-        </div>
-        <p role="alert" className="alert alert-danger alert-inline">
-          {error}
-        </p>
-      </div>
-    )
-  }
-
-  const current = stats?.current ?? {
-    salesCents: 0,
-    orderCount: 0,
-    unitsSold: 0,
-    avgOrderValueCents: 0
-  }
-  const previous = stats?.previous ?? {
-    salesCents: 0,
-    orderCount: 0,
-    unitsSold: 0,
-    avgOrderValueCents: 0
-  }
+  // `stats` may still hold a PREVIOUS period's data if the fetch for the
+  // currently-selected `period` hasn't landed yet or just failed — only
+  // trust it once `statsPeriod` actually matches `period`.
+  const periodContentReady = stats !== null && statsPeriod === period
 
   return (
     <div className="products-page">
@@ -106,101 +109,113 @@ function DashboardPage(): React.JSX.Element {
         </div>
       </div>
 
-      {error && (
-        <p role="alert" className="alert alert-danger alert-inline">
-          {error}
-        </p>
-      )}
+      <div className="dashboard-stats">
+        {periodLoading && !periodContentReady ? (
+          <LoadingRow label="Loading stats…" />
+        ) : periodContentReady && stats ? (
+          STAT_CARD_CONFIG.map((card) => (
+            <StatCard
+              key={card.key}
+              label={card.label}
+              value={card.format(stats.current[card.field])}
+              current={stats.current[card.field]}
+              previous={stats.previous[card.field]}
+            />
+          ))
+        ) : (
+          periodError && (
+            <p role="alert" className="alert alert-danger alert-inline">
+              {periodError}
+            </p>
+          )
+        )}
+      </div>
 
-      {loading ? (
-        <div className="loading-row">
-          <span className="spinner" aria-hidden="true" />
-          Loading dashboard…
+      <div className="dashboard-panels">
+        <div className="dashboard-panel dashboard-panel-chart">
+          <h2>{period === 'today' ? 'Today by Hour' : 'Last 7 Days'}</h2>
+          {periodLoading && !periodContentReady ? (
+            <LoadingRow label="Loading chart…" />
+          ) : periodContentReady ? (
+            <BarChart
+              data={chartData}
+              ariaLabel={
+                period === 'today' ? 'Sales by hour, today' : 'Sales for the last 7 days'
+              }
+            />
+          ) : (
+            periodError && (
+              <p role="alert" className="alert alert-danger alert-inline">
+                {periodError}
+              </p>
+            )
+          )}
         </div>
-      ) : (
-        <>
-          <div className="dashboard-stats">
-            <StatCard
-              label="Total Sales"
-              value={Money.fromCents(current.salesCents).format()}
-              current={current.salesCents}
-              previous={previous.salesCents}
-            />
-            <StatCard
-              label="Total Orders"
-              value={String(current.orderCount)}
-              current={current.orderCount}
-              previous={previous.orderCount}
-            />
-            <StatCard
-              label="Avg Order Value"
-              value={Money.fromCents(current.avgOrderValueCents).format()}
-              current={current.avgOrderValueCents}
-              previous={previous.avgOrderValueCents}
-            />
-            <StatCard
-              label="Units Sold"
-              value={String(current.unitsSold)}
-              current={current.unitsSold}
-              previous={previous.unitsSold}
-            />
-          </div>
 
-          <div className="dashboard-panels">
-            <div className="dashboard-panel dashboard-panel-chart">
-              <h2>{period === 'today' ? 'Today by Hour' : 'Last 7 Days'}</h2>
-              <BarChart
-                data={chartData}
-                ariaLabel={
-                  period === 'today' ? 'Sales by hour, today' : 'Sales for the last 7 days'
-                }
-              />
-            </div>
+        <div className="dashboard-panel dashboard-panel-donut">
+          <h2>Sales by Payment Method</h2>
+          {periodLoading && !periodContentReady ? (
+            <LoadingRow label="Loading…" />
+          ) : periodContentReady ? (
+            <DonutChart data={paymentBreakdown} />
+          ) : (
+            periodError && (
+              <p role="alert" className="alert alert-danger alert-inline">
+                {periodError}
+              </p>
+            )
+          )}
+        </div>
 
-            <div className="dashboard-panel dashboard-panel-donut">
-              <h2>Sales by Payment Method</h2>
-              <DonutChart data={paymentBreakdown} />
-            </div>
+        <div className="dashboard-panel dashboard-panel-top">
+          <h2>Top Products</h2>
+          {staticLoading ? (
+            <LoadingRow label="Loading…" />
+          ) : staticError ? (
+            <p role="alert" className="alert alert-danger alert-inline">
+              {staticError}
+            </p>
+          ) : topProducts.length === 0 ? (
+            <p className="empty-hint">No sales yet</p>
+          ) : (
+            <ol className="top-products-list">
+              {topProducts.map((product, index) => (
+                <li key={product.productId}>
+                  <span>
+                    {index + 1}. {product.productName}
+                  </span>
+                  <span>
+                    {product.totalQuantity} sold ·{' '}
+                    {Money.fromCents(product.totalRevenueCents).format()}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
 
-            <div className="dashboard-panel dashboard-panel-top">
-              <h2>Top Products</h2>
-              {topProducts.length === 0 ? (
-                <p className="empty-hint">No sales yet</p>
-              ) : (
-                <ol className="top-products-list">
-                  {topProducts.map((product, index) => (
-                    <li key={product.productId}>
-                      <span>
-                        {index + 1}. {product.productName}
-                      </span>
-                      <span>
-                        {product.totalQuantity} sold ·{' '}
-                        {Money.fromCents(product.totalRevenueCents).format()}
-                      </span>
-                    </li>
-                  ))}
-                </ol>
-              )}
-            </div>
-
-            <div className="dashboard-panel dashboard-panel-low">
-              <h2>Low Stock</h2>
-              {lowStockProducts.length === 0 ? (
-                <p className="empty-hint">Nothing low on stock</p>
-              ) : (
-                <ul className="low-stock-list">
-                  {lowStockProducts.map((product) => (
-                    <li key={product.id}>
-                      <span>{product.name}</span>
-                      <span className="badge badge-inactive">{product.stock} left</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        </>
-      )}
+        <div className="dashboard-panel dashboard-panel-low">
+          <h2>Low Stock</h2>
+          {staticLoading ? (
+            <LoadingRow label="Loading…" />
+          ) : staticError ? (
+            <p role="alert" className="alert alert-danger alert-inline">
+              {staticError}
+            </p>
+          ) : lowStockProducts.length === 0 ? (
+            <p className="empty-hint">Nothing low on stock</p>
+          ) : (
+            <ul className="low-stock-list">
+              {lowStockProducts.map((product) => (
+                <li key={product.id}>
+                  <span>{product.name}</span>
+                  <span className="badge badge-inactive">{product.stock} left</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
