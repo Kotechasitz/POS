@@ -211,6 +211,19 @@ describe('getSalesChartData', () => {
     const result = getSalesChartData(client.db, '7days', referenceDate)
     expect(result[6].label).toBe(expectedLastLabel)
   })
+
+  it("'7days': bucket totals sum to exactly getDashboardStats' current-period total, proving both share one window definition (not two independently-hardcoded '6's that could drift apart)", () => {
+    insertRawSale(client, 'today-sale', 1500, daysAgoIso(0))
+    insertRawSale(client, 'six-days-ago', 2500, daysAgoIso(6))
+    insertRawSale(client, 'seven-days-ago', 9999, daysAgoIso(7)) // outside the window on both sides
+
+    const referenceDate = new Date()
+    const chart = getSalesChartData(client.db, '7days', referenceDate)
+    const stats = getDashboardStats(client.db, '7days', referenceDate)
+
+    const chartTotal = chart.reduce((sum, bucket) => sum + bucket.totalCents, 0)
+    expect(chartTotal).toBe(stats.current.salesCents)
+  })
 })
 
 describe('getPaymentMethodBreakdown', () => {

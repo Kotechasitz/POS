@@ -54,7 +54,15 @@ function getPeriodWindow(period: DashboardPeriod, referenceDate: Date): PeriodWi
   }
 }
 
-function getPeriodStats(db: BetterSQLite3Database, start: Date, end: Date): PeriodStats {
+// The one query every period-window read needs: COMPLETED sales in
+// [start, end). Split out from getPeriodStats so a chart bucket — which
+// only ever needs totalCents — doesn't also pay for the saleItems query
+// getPeriodStats does to compute unitsSold.
+function sumCompletedSales(
+  db: BetterSQLite3Database,
+  start: Date,
+  end: Date
+): { salesCents: number; saleIds: string[] } {
   const windowSales = db
     .select()
     .from(sales)
@@ -71,14 +79,19 @@ function getPeriodStats(db: BetterSQLite3Database, start: Date, end: Date): Peri
     .reduce((total, sale) => total.add(Money.fromCents(sale.totalCents)), Money.fromCents(0))
     .cents
 
+  return { salesCents, saleIds: windowSales.map((sale) => sale.id) }
+}
+
+function getPeriodStats(db: BetterSQLite3Database, start: Date, end: Date): PeriodStats {
+  const { salesCents, saleIds } = sumCompletedSales(db, start, end)
+
   let unitsSold = 0
-  if (windowSales.length > 0) {
-    const saleIds = windowSales.map((sale) => sale.id)
+  if (saleIds.length > 0) {
     const items = db.select().from(saleItems).where(inArray(saleItems.saleId, saleIds)).all()
     unitsSold = items.reduce((sum, item) => sum + item.quantity, 0)
   }
 
-  const orderCount = windowSales.length
+  const orderCount = saleIds.length
   const avgOrderValueCents = orderCount > 0 ? Math.round(salesCents / orderCount) : 0
 
   return { salesCents, orderCount, unitsSold, avgOrderValueCents }
@@ -101,16 +114,30 @@ export function getSalesChartData(
   period: DashboardPeriod,
   referenceDate: Date = new Date()
 ): ChartBucket[] {
+  // Both branches derive their bucket boundaries from the SAME window
+  // getDashboardStats uses (via getPeriodWindow), rather than re-deriving
+  // their own "-6 days" / "today" arithmetic — so the chart's buckets are
+  // guaranteed to sum to the stat cards' current-period total, not just
+  // coincidentally agree with it today.
+  const window = getPeriodWindow(period, referenceDate)
+
   if (period === 'today') {
-    const dayStart = startOfDay(referenceDate)
     const buckets: ChartBucket[] = []
     for (let hour = 0; hour < 24; hour++) {
-      const start = new Date(dayStart.getFullYear(), dayStart.getMonth(), dayStart.getDate(), hour)
-      const end = new Date(dayStart.getFullYear(), dayStart.getMonth(), dayStart.getDate(), hour + 1)
-      const stats = getPeriodStats(db, start, end)
+      const start = new Date(
+        window.currentStart.getFullYear(),
+        window.currentStart.getMonth(),
+        window.currentStart.getDate(),
+        hour
+      )
+      const end = new Date(start.getFullYear(), start.getMonth(), start.getDate(), hour + 1)
+      // Only totalCents is displayed on the chart — sumCompletedSales
+      // (one query) rather than getPeriodStats (which would also compute,
+      // then discard, unitsSold/avgOrderValueCents via a second query).
+      const { salesCents } = sumCompletedSales(db, start, end)
       buckets.push({
         label: start.toLocaleTimeString(undefined, { hour: 'numeric' }),
-        totalCents: stats.salesCents
+        totalCents: salesCents
       })
     }
     return buckets
@@ -118,13 +145,12 @@ export function getSalesChartData(
 
   // '7days'
   const buckets: ChartBucket[] = []
-  for (let daysAgo = 6; daysAgo >= 0; daysAgo--) {
-    const start = addDays(startOfDay(referenceDate), -daysAgo)
+  for (let start = window.currentStart; start < window.currentEnd; start = addDays(start, 1)) {
     const end = addDays(start, 1)
-    const stats = getPeriodStats(db, start, end)
+    const { salesCents } = sumCompletedSales(db, start, end)
     buckets.push({
       label: start.toLocaleDateString(undefined, { weekday: 'short' }),
-      totalCents: stats.salesCents
+      totalCents: salesCents
     })
   }
   return buckets
