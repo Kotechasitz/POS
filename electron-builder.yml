@@ -1,0 +1,60 @@
+appId: com.kotechasitz.pos
+productName: POS
+directories:
+  buildResources: build
+# An explicit include-list, not a block-list: only these three things are
+# ever considered for packaging — electron-vite's compiled output, the
+# Linux-icon asset referenced by src/main/index.ts's `?asset` import (the
+# drizzle/ migrations folder is intentionally NOT listed here; it ships
+# exclusively via extraResources below, see src/main/database/db-path.ts's
+# getMigrationsPath()), and package.json (required by electron-builder
+# itself). This fails safe: a new top-level dev file/folder added to the
+# project root later (a script, a stray local DB, an editor config) is
+# excluded by default instead of needing its own exclusion rule to keep it
+# out of the shipped installer.
+files:
+  - out/**/*
+  - resources/**/*
+  - package.json
+asarUnpack:
+  - resources/**
+extraResources:
+  - from: drizzle
+    to: drizzle
+publish: null
+win:
+  executableName: POS
+  # Pinned explicitly: with no arch specified, electron-builder defaults to
+  # the *build host's* architecture, so a build run on an ARM64 machine
+  # would silently emit dist/win-arm64-unpacked/ instead of
+  # dist/win-unpacked/, breaking package.json's smoke:package script (and
+  # anything else assuming a fixed x64 output path). This app targets x64
+  # Windows POS terminals — see the spec's tech-stack table.
+  target:
+    target: nsis
+    arch: x64
+nsis:
+  artifactName: ${name}-${version}-setup.${ext}
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  createDesktopShortcut: always
+mac:
+  entitlementsInherit: build/entitlements.mac.plist
+  extendInfo:
+    - NSCameraUsageDescription: Application requests access to the device's camera.
+    - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
+    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
+    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+  notarize: false
+dmg:
+  artifactName: ${name}-${version}.${ext}
+linux:
+  target:
+    - AppImage
+    - snap
+    - deb
+  maintainer: electronjs.org
+  category: Utility
+appImage:
+  artifactName: ${name}-${version}.${ext}
+npmRebuild: false

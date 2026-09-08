@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1788096626788,
+      "tag": "0000_petite_scream",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1788442956659,
+      "tag": "0001_calm_warpath",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1788572078572,
+      "tag": "0002_cloudy_onslaught",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1788596889754,
+      "tag": "0003_wakeful_bulldozer",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1788630489225,
+      "tag": "0004_cuddly_ma_gnuci",
+      "breakpoints": true
+    }
+  ]
+}
